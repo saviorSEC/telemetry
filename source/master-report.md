@@ -386,7 +386,7 @@ The Developer Analytics Tools (DAT) for Ray-Ban Meta Smart Glasses collects cust
 |----------|----------|--------|--------|
 | `api.segment.io/v1/track` | 200 OK | POST | Segment analytics injection |
 
-**Exposed WriteKey:** `EG2u2hLdqtlP5MnuRg4HSGMbyGHfGAc3`
+**Exposed WriteKey:** `[REDACTED — provided to vendor]`
 
 **Test Results (9/10 passed):**
 

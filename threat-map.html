@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>Telemetry Injection — Threat Map</title>
+<meta name="description" content="Threat map of unauthenticated telemetry injection across 10 technology ecosystems — endpoints, disposition, and claim boundaries.">
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+  .map-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem; }
+  .tile { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; }
+  .tile h3 { font-size: .95rem; margin-bottom: .4rem; display: flex; align-items: center; gap: .5rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+  .tile .sub { font-size: .72rem; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .6rem; }
+  .tile p { font-size: .82rem; margin-bottom: .5rem; }
+  .stat-line { display: flex; justify-content: space-between; font-size: .8rem; border-top: 1px dashed var(--border); padding-top: .5rem; margin-top: .4rem; }
+  .stat-line .k { color: var(--muted); }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .78rem; color: var(--muted); margin-top: .8rem; }
+  .legend-row span { display: inline-flex; align-items: center; gap: .4rem; }
+  .svgshell { width: 100%; overflow-x: auto; margin-top: 1.2rem; }
+</style>
+</head>
+<body>
+<nav class="site-nav"><div class="container">
+  <a href="index.html">Home</a>
+  <a href="whitepaper.html">Whitepaper</a>
+  <a href="endpoints.html">Endpoints</a>
+  <a href="galaxy.html">Galaxy</a>
+  <a href="threat-map.html">Threat Map</a>
+  <a href="master-report.html">Master Report</a>
+  <a href="vrp-correspondence.html">VRP</a>
+  <a href="legal-annex.html">Legal</a>
+</div></nav>
+
+<header class="site-header">
+  <div class="container">
+    <div class="kicker">Church of Malware · Triage Map</div>
+    <h1>Unauthenticated Telemetry Injection — Threat Map</h1>
+    <p class="subtitle">Ten ecosystems, 80+ ingestion endpoints. One recurring architecture:
+    public ingestion accepted at the boundary; the security question is whether unverified
+    provenance survives downstream.</p>
+    <div class="badge-row">
+      <span class="badge badge-warn">Embargo lifted 2026-09-04</span>
+      <span class="badge badge-accent">TLP:CLEAR</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="card">
+    <h2>Legend</h2>
+    <div class="legend-row">
+      <span><span class="dot" style="background:#00e5ff"></span> Microsoft</span>
+      <span><span class="dot" style="background:#ffb020"></span> Google/Android</span>
+      <span><span class="dot" style="background:#94a3b8"></span> Apple</span>
+      <span><span class="dot" style="background:#7c5cff"></span> Meta</span>
+      <span><span class="dot" style="background:#00d0ff"></span> LinkedIn</span>
+      <span><span class="dot" style="background:#ff3d81"></span> Baidu</span>
+      <span><span class="dot" style="background:#4ade80"></span> CNZZ/Umeng</span>
+      <span><span class="dot" style="background:#a78bfa"></span> Tencent</span>
+      <span><span class="dot" style="background:#ffd166"></span> Matomo</span>
+      <span><span class="dot" style="background:#f472b6"></span> Flock Safety</span>
+    </div>
+    <p class="note" style="margin-top:.8rem">Ingestion acceptance = confirmed externally.
+    Retention, trusted use, execution, or downstream impact = requires operator/vendor-side
+    verification (see <a href="whitepaper.html">whitepaper claim boundaries</a>).</p>
+  </div>
+
+  <div id="map-root" class="map-grid"><p class="muted">Loading threat map…</p></div>
+  <div class="card"><p class="note">Full endpoint-level data: <a href="endpoints.html">Endpoints &amp; Vendor Dispositions</a> ·
+  interactive 3D view: <a href="galaxy.html">Telemetry Galaxy</a> · vendor statuses: <a href="master-report.html">Master Report</a>.</p></div>
+</main>
+
+<footer class="site-footer"><div class="container">
+  <p>© 2026 Church of Malware · <a href="https://churchofmalware.org">churchofmalware.org</a></p>
+  <p class="note">Public-interest disclosure. No exploit code; no instructions enabling harm. TLP:CLEAR.</p>
+</div></footer>
+
+<script>
+fetch('data/triage.json').then(r=>r.json()).then(data=>{
+  const root=document.getElementById('map-root'); root.innerHTML='';
+  const colors={"microsoft":"#00e5ff","google":"#ffb020","apple":"#94a3b8","meta":"#7c5cff","linkedin":"#00d0ff","baidu":"#ff3d81","cnzz":"#4ade80","tencent":"#a78bfa","matomo":"#ffd166","flock":"#f472b6"};
+  for (const c of data.companies){
+    const eps=c.families.reduce((n,f)=>n+(f.endpoints?f.endpoints.length:0),0);
+    const st=c.families.map(f=>f.status||'').join(' ').trim();
+    const t=document.createElement('div'); t.className='tile';
+    t.innerHTML=`<h3><span class="dot" style="background:${colors[c.id]||'#888'}"></span>${c.name}</h3>
+      <div class="sub">${c.families.length} famil${c.families.length>1?'ies':'y'} · ${eps} endpoint row${eps>1?'s':''}</div>
+      ${c.families.map(f=>`<p><strong>${f.name}:</strong> <span class="note">${(f.status||'').split('.')[0]}</span></p>`).join('')}
+      <div class="stat-line"><span class="k">disposition</span><span>${st?st.split('.').slice(-1)[0].trim().slice(0,60):'—'}</span></div>`;
+    root.appendChild(t);
+  }
+}).catch(e=>{document.getElementById('map-root').innerHTML='<p class="muted">Could not load map data.</p>';});
+</script>
+</body>
+</html>

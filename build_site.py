@@ -8,9 +8,12 @@ NAV = """
 <nav class="site-nav"><div class="container">
   <a href="index.html">Home</a>
   <a href="whitepaper.html">Whitepaper</a>
+  <a href="endpoints.html">Endpoints</a>
+  <a href="galaxy.html">Galaxy</a>
+  <a href="threat-map.html">Threat Map</a>
   <a href="master-report.html">Master Report</a>
-  <a href="vrp-correspondence.html">VRP Correspondence</a>
-  <a href="legal-annex.html">Legal Annex</a>
+  <a href="vrp-correspondence.html">VRP</a>
+  <a href="legal-annex.html">Legal</a>
 </div></nav>
 """
 

@@ -65,6 +65,3 @@ if __name__ == "__main__":
     gen("source/legal-annex.md", "legal-annex.html",
         "Legal Annex — Telemetry Integrity: Potential Legal and Regulatory Considerations",
         "Research note on laws, regulations, and standards potentially relevant to unauthenticated, attacker-controlled telemetry.")
-    gen("source/vrp-correspondence.md", "vrp-correspondence.html",
-        "Google VRP Correspondence — Android Check-In Telemetry Provenance",
-        "Researcher correspondence with Google VRP on android.googleapis.com/checkin — corrected report and provenance questions.")

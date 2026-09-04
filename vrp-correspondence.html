@@ -1,201 +1,119 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
+<html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="index, follow">
-<title>Google VRP Correspondence — Android Check-In Telemetry Provenance</title>
-<meta name="description" content="Researcher correspondence with Google VRP on android.googleapis.com/checkin — corrected report and provenance questions.">
-<meta property="og:title" content="Google VRP Correspondence — Android Check-In Telemetry Provenance">
-<meta property="og:type" content="article">
-<meta property="og:description" content="Researcher correspondence with Google VRP on android.googleapis.com/checkin — corrected report and provenance questions.">
-<link rel="stylesheet" href="assets/css/style.css">
-</head>
-<body>
-
+<title>Vendor Correspondence — Telemetry Triage</title>
+<meta name="description" content="Coordinated-disclosure correspondence with every vendor — MSRC, Google VRP, Meta, Flock PSIRT, LinkedIn, Apple, TSRC and more.">
+<link rel="stylesheet" href="assets/css/style.css"></head><body>
 <nav class="site-nav"><div class="container">
-  <a href="index.html">Home</a>
-  <a href="whitepaper.html">Whitepaper</a>
-  <a href="endpoints.html">Endpoints</a>
-  <a href="galaxy.html">Galaxy</a>
-  <a href="threat-map.html">Threat Map</a>
-  <a href="master-report.html">Master Report</a>
-  <a href="vrp-correspondence.html">VRP</a>
+  <a href="index.html">Home</a> <a href="whitepaper.html">Whitepaper</a>
+  <a href="endpoints.html">Endpoints</a> <a href="galaxy.html">Galaxy</a>
+  <a href="threat-map.html">Threat Map</a> <a href="master-report.html">Master Report</a>
+  <a href="dossiers.html">Dossiers</a> <a href="vrp-correspondence.html">Correspondence</a>
   <a href="legal-annex.html">Legal</a>
 </div></nav>
-
-<main class="container article">
-<div class="doc-title">Google VRP Correspondence — Android Check-In Telemetry Provenance</div>
-<blockquote>
-<p><strong>Editorial note (site):</strong> This page preserves the researcher's correspondence with the<br />
-Google Vulnerability Rewards Program regarding <code>android.googleapis.com/checkin</code>.<br />
-The <strong>corrected VRP report</strong> (below) supersedes earlier drafts and explicitly limits its<br />
-claims to the externally observable provenance boundary. Earlier follow-up language that<br />
-asserted downstream storage, fleet impact, or payload execution was <strong>withdrawn</strong> from the<br />
-formal report because those effects cannot be confirmed from outside Google — consistent<br />
-with the claim boundaries in the <a href="whitepaper.html">whitepaper</a>. Vendor responses are<br />
-reproduced for transparency; a vendor's statement is not independently verified by us.</p>
-</blockquote>
-<hr />
-<h2>Corrected VRP report — "Unauthenticated Telemetry Injection in Android Check-In"</h2>
-<p><strong>Vulnerability Description</strong></p>
-<h2>Unauthenticated Telemetry Injection in Android Check-In — Unverified Client-Supplied Device Data Accepted at Bootstrap</h2>
-<p>Affected endpoint:</p>
-<p><code>https://android.googleapis.com/checkin</code></p>
-<p>Related prior issue:</p>
-<p><code>533164589</code></p>
-<p>This is a corrected server-side report submitted through the Google VRP after the Android team instructed me to file a new BugHunter report if I disputed the prior disposition.</p>
-<p>Google previously stated that unauthenticated check-ins are intentional because a new device may not yet possess credentials. Google also stated that <code>stats_ok: true</code> means the server received and parsed the request, not that the submitted data was trusted or executed.</p>
-<p>That explanation does not resolve the vulnerability reported here.</p>
-<p>The vulnerability is <strong>unauthenticated telemetry injection</strong>: an external caller can submit device-identity-like and telemetry fields without proving control of the asserted producer. The security question is what happens to those fields after parsing.</p>
-<p>Google has relied on internal handling and segregation of unverified input as the reason this behavior is safe. I am therefore requesting evidence that the submitted event is actually marked <strong>untrusted/unsafe</strong> and remains that way through its lifecycle.</p>
-<p>I am not requesting another generic statement that unauthenticated bootstrap is "working as intended." That is not responsive to the provenance issue.</p>
-<p>I am requesting a trace result for the supplied canary and a direct answer to the following:</p>
-<ol>
-<li>Is the event discarded immediately after parsing?</li>
-<li>Is it quarantined?</li>
-<li>Is it retained with an explicit, durable <code>untrusted</code>, <code>unauthenticated</code>, or equivalent safety classification?</li>
-<li>Can caller-supplied <code>android_id</code>, <code>security_token</code>, or <code>device_info</code> values become associated with an existing device or account?</li>
-<li>Can the event be aggregated, exported, or exposed to a consumer before verification?</li>
-<li>Does the untrusted classification survive every transformation and storage stage?</li>
-<li>Are downstream consumers technically prevented from treating this event as authenticated device telemetry?</li>
-</ol>
-<p>Google is the only party able to inspect the private downstream system. Closing the report because an external researcher cannot observe that private system is not a technical resolution of the provenance question.</p>
-<p>A conclusory "working as intended" response is insufficient. Please provide one of the following concrete dispositions for the submitted canary:</p>
-<ul>
-<li><strong>Discarded after parsing</strong>;</li>
-<li><strong>Quarantined</strong>;</li>
-<li><strong>Retained with an immutable untrusted/unsafe provenance marker</strong>;</li>
-<li><strong>Verified and promoted only after a separate authoritative identity check</strong>; or</li>
-<li><strong>Google cannot substantiate that the event remains segregated from trusted telemetry</strong>.</li>
-</ul>
-<p>I am not asking Google to disclose sensitive architecture, filtering logic, or abuse-detection thresholds. I am asking for enough evidence to support Google's own security conclusion.</p>
-<h3>Confirmed behavior</h3>
-<p>A remote party can send a check-in request without:</p>
-<ul>
-<li>An API key;</li>
-<li>OAuth authentication;</li>
-<li>A Google account;</li>
-<li>A client certificate;</li>
-<li>Device attestation;</li>
-<li>A cryptographic request signature; or</li>
-<li>Proof that the caller controls the asserted device identity.</li>
-</ul>
-<p>The request includes caller-controlled fields such as:</p>
-<ul>
-<li><code>android_id</code>;</li>
-<li><code>security_token</code>;</li>
-<li><code>device_info</code>;</li>
-<li>Manufacturer, model, and build strings;</li>
-<li>Timestamps;</li>
-<li>Locale; and</li>
-<li>A unique research canary.</li>
-</ul>
-<p>The server returns HTTP 200 with a response such as:</p>
-<pre><code class="language-json">{
- &quot;stats_ok&quot;: true,
- &quot;time_msec&quot;: &quot;&lt;SERVER-GENERATED-TIMESTAMP&gt;&quot;
-}
-</code></pre>
-<p>This establishes receipt and parsing only.</p>
-<p>It does not, by itself, establish persistence, attribution, trusted use, aggregation, export, execution, or impact on any specific downstream system. Those facts require Google-side tracing.</p>
-<h3>Security boundary</h3>
-<p>Unauthenticated bootstrap may be intentional. Loss of provenance is not.</p>
-<p>The endpoint is safe only if caller-controlled data remains explicitly untrusted until a separate authoritative verification step succeeds.</p>
-<p>The relevant weakness classifications are:</p>
-<ul>
-<li><strong>CWE-360 — Trust of System Event Data</strong></li>
-<li><strong>CWE-345 — Insufficient Verification of Data Authenticity</strong></li>
-<li><strong>CWE-349 — Acceptance of Extraneous Untrusted Data With Trusted Data</strong></li>
-</ul>
-<p>This report does not rely on prior claims involving Waymo, BigQuery, Pub/Sub, machine learning, stored injection, fleet systems, or denial of service. Those claims are not necessary to evaluate the telemetry-provenance boundary.</p>
-<p><strong>Attack Preconditions</strong></p>
-<p>The attacker needs only:</p>
-<ul>
-<li>Internet access;</li>
-<li>The ability to send one HTTPS POST request; and</li>
-<li>Knowledge of the public endpoint.</li>
-</ul>
-<p>No account, API key, OAuth token, client certificate, physical Android device, local access, valid Android security token, or user interaction is required.</p>
-<p>The attached PoC sends exactly one synthetic canary. It performs no retries, bulk traffic, rate-limit testing, flooding, payload-execution testing, or testing involving a real user, device, account, or third-party identifier.</p>
-<p><strong>Reproduction Steps / POC</strong></p>
-<ol>
-<li>Install the <code>requests</code> dependency if necessary:</li>
-</ol>
-<pre><code class="language-bash">python3 -m pip install requests
-</code></pre>
-<ol start="2">
-<li>Review the attached file:</li>
-</ol>
-<p><code>google_checkin_single_canary_poc.py</code></p>
-<ol start="3">
-<li>Run it without network activity to inspect the exact request:</li>
-</ol>
-<pre><code class="language-bash">python3 google_checkin_single_canary_poc.py
-</code></pre>
-<ol start="4">
-<li>Send exactly one canary request:</li>
-</ol>
-<pre><code class="language-bash">python3 google_checkin_single_canary_poc.py --send
-</code></pre>
-<ol start="5">
-<li>Record:</li>
-</ol>
-<ul>
-<li>The generated canary;</li>
-<li>HTTP status;</li>
-<li>Response body; and</li>
-<li>The generated <code>google_checkin_evidence_&lt;CANARY&gt;.json</code> file.</li>
-</ul>
-<p>The PoC uses obvious synthetic research values and includes a unique field in <code>device_info</code>:</p>
-<pre><code class="language-text">research_canary:GOOGLE-VRP-CHECKIN-PROVENANCE-&lt;UTC-TIMESTAMP&gt;-&lt;RANDOM&gt;
-</code></pre>
-<p>Expected externally observable result:</p>
-<pre><code class="language-json">{
- &quot;stats_ok&quot;: true,
- &quot;time_msec&quot;: &quot;&lt;SERVER-GENERATED-TIMESTAMP&gt;&quot;
-}
-</code></pre>
-<p>The PoC deliberately does not characterize that response as proof of storage or downstream trust.</p>
-<h3>Required Google-side verification</h3>
-<p>Trace the exact canary and provide its final disposition.</p>
-<p>For each submitted field—especially <code>android_id</code>, <code>security_token</code>, <code>device_info</code>, and <code>research_canary</code>—state whether it was:</p>
-<ul>
-<li>Ignored;</li>
-<li>Replaced;</li>
-<li>Validated;</li>
-<li>Discarded;</li>
-<li>Quarantined;</li>
-<li>Temporarily retained;</li>
-<li>Persisted with an immutable untrusted/unsafe marker;</li>
-<li>Associated with a device or account;</li>
-<li>Aggregated;</li>
-<li>Exported; or</li>
-<li>Delivered to a downstream consumer.</li>
-</ul>
-<p>Also identify the enforcement point that prevents an unauthenticated event from being treated as authenticated telemetry.</p>
-<h3>Expected secure result</h3>
-<p>The event is either discarded or retained with a durable untrusted/unsafe provenance classification that cannot be removed before authoritative device verification.</p>
-<p>Caller-supplied identity fields cannot establish, impersonate, modify, or become associated with an existing device identity.</p>
-<p>No consumer that requires trusted device telemetry can access or act on the event before verification.</p>
-<h3>Actual externally observable result</h3>
-<p>The production endpoint receives and parses one unauthenticated request containing caller-controlled device-identity-like fields.</p>
-<p>The response does not reveal whether the event is marked unsafe, discarded, segregated, or later consumed.</p>
-<p>That missing fact is the exact reason Google must trace the supplied canary rather than close the report with a generic design explanation.</p>
-<h3>Requested disposition</h3>
-<p>Please provide a technically specific answer:</p>
-<ul>
-<li><strong>The canary was discarded</strong>;</li>
-<li><strong>The canary was quarantined</strong>;</li>
-<li><strong>The canary was retained with an immutable untrusted/unsafe designation</strong>;</li>
-<li><strong>The canary was promoted only after separate authoritative verification</strong>; or</li>
-<li><strong>Google cannot confirm those controls</strong>.</li>
-</ul>
-<p>Anything less does not resolve the reported telemetry-provenance boundary.</p>
+<header class="site-header"><div class="container">
+  <div class="kicker">Church of Malware · Coordinated Disclosure</div>
+  <h1>Vendor Correspondence</h1>
+  <p class="subtitle">Every disclosure thread, vendor position, and case disposition — reproduced
+  faithfully. Ingestion acceptance is confirmed externally; downstream claims follow the
+  <a href="whitepaper.html">whitepaper's</a> claim boundaries. Live credentials redacted.</p>
+  <div class="badge-row"><span class="badge badge-warn">Embargo lifted 2026-09-04</span>
+  <span class="badge badge-accent">TLP:CLEAR</span>
+  <span class="badge">Publication record · 2026</span></div>
+</div></header>
+<main class="container">
+  <div class="card"><h2>At a glance</h2>
+  <table><thead><tr><th>Vendor</th><th>Case / ref</th><th>Disposition</th></tr></thead><tbody>
+  <tr><td><a href="#v-google">Google / Android VRP</a></td><td>Android Check-In — related prior 533164589</td><td>Open position: Google states unauthenticated bootstrap is intentional and server-side segregation controls exist.</td></tr><tr><td><a href="#v-microsoft">Microsoft MSRC</a></td><td>VULN-193698 / Case 121314 · VULN-200045 / Case 125992 · VULN-202543</td><td>All three closed.</td></tr><tr><td><a href="#v-meta">Meta Bug Bounty</a></td><td>Reports 122102502879389843 · 122104644987389843</td><td>2026-07-15: first report closed — does not qualify (working-as-intended / out of scope / no demonstrated impact per Meta).</td></tr><tr><td><a href="#v-flock">Flock Safety PSIRT</a></td><td>Reference teal-lynx</td><td>PSIRT follow-up (Segment + Datadog RUM) sent with 10 provenance questions; awaiting reproduction + security-impact analysis.</td></tr><tr><td><a href="#v-linkedin">LinkedIn Security</a></td><td>— (email to security@linkedin.com)</td><td>Submitted 2026-07-12 via security@linkedin.</td></tr><tr><td><a href="#v-apple">Apple Security Bounty</a></td><td>OE110716814418</td><td>Under review per correspondence (2026-07).</td></tr><tr><td><a href="#v-tencent">Tencent TSRC</a></td><td>— (TSRC)</td><td>Report prepared; submission per TSRC process.</td></tr><tr><td><a href="#v-amazon">Amazon VRP</a></td><td>— (VRP)</td><td>Report filed; protobuf-format injection requires further testing per NOT-VULN notes (inconclusive).</td></tr><tr><td><a href="#v-baidu">Baidu / CNZZ / Umeng</a></td><td>— (BSRC / Alibaba)</td><td>Reports prepared for BSRC (Baidu) + Alibaba security (CNZZ/Umeng).</td></tr><tr><td><a href="#v-matomo">Matomo</a></td><td>—</td><td>Open-source tracker class; report prepared.</td></tr>
+  </tbody></table></div>
+  
+    <section class="card" id="v-google">
+      <h2><span class="dot" style="background:#ffb020;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.5rem"></span>Google / Android VRP</h2>
+      <p class="note" style="margin-bottom:.4rem"><strong>Case:</strong> Android Check-In — related prior 533164589</p>
+      <p style="margin-bottom:.6rem">Open position: Google states unauthenticated bootstrap is intentional and server-side segregation controls exist. Corrected report requests a canary trace + durable untrusted-provenance confirmation. (2026-07)</p>
+      <p class="note" style="margin-bottom:.6rem">Aggressive Waymo/BigQuery/ML claims from earlier drafts were withdrawn from the formal report as not externally verifiable — see corrected report.</p>
+      <h3 style="font-size:.85rem;margin:.6rem 0 .3rem;color:var(--accent)">Records</h3>
+      <ul style="margin-left:1.1rem"><li><a href="vrp-correspondence.html#google">Corrected VRP report — provenance questions</a></li><li><a href="dossier-google.html">Reply / impact rebuttal (my_reply)</a></li><li><a href="dossier-google.html">Android VRP report (full filing)</a></li></ul>
+    </section>
+    <section class="card" id="v-microsoft">
+      <h2><span class="dot" style="background:#00e5ff;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.5rem"></span>Microsoft MSRC</h2>
+      <p class="note" style="margin-bottom:.4rem"><strong>Case:</strong> VULN-193698 / Case 121314 · VULN-200045 / Case 125992 · VULN-202543</p>
+      <p style="margin-bottom:.6rem">All three closed. 121314: Low severity, closed 2026-08-25 — source-map exposure fixed (findings 1–3); telemetry element assessed Low/by-design. 125992: Low, closed as duplicate 2026-08-17. 202543: Complete-NA (non-MSRC) 2026-07-17. Re-verified 2026-09-04: App Insights still accepts.</p>
+      <p class="note" style="margin-bottom:.6rem">Closure letters reproduced in transcripts. Re-verification evidence in docs/reverification-2026-09-04.md.</p>
+      <h3 style="font-size:.85rem;margin:.6rem 0 .3rem;color:var(--accent)">Records</h3>
+      <ul style="margin-left:1.1rem"><li><a href="source/raw/msrc-case-121314-vuln-193698.txt">Case 121314 / VULN-193698 (full transcript)</a></li><li><a href="source/raw/msrc-case-125992-vuln-200045.txt">Case 125992 / VULN-200045 (full transcript)</a></li><li><a href="source/raw/msrc-case-vuln-202543-onecollector-reassessment.md">VULN-202543 reassessment record</a></li><li><a href="dossier-microsoft.html">MSRC dossier (both-0day brief)</a></li></ul>
+    </section>
+    <section class="card" id="v-meta">
+      <h2><span class="dot" style="background:#7c5cff;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.5rem"></span>Meta Bug Bounty</h2>
+      <p class="note" style="margin-bottom:.4rem"><strong>Case:</strong> Reports 122102502879389843 · 122104644987389843</p>
+      <p style="margin-bottom:.6rem">2026-07-15: first report closed — does not qualify (working-as-intended / out of scope / no demonstrated impact per Meta). Second report filed on Pixel provenance; Meta security confirmed receipt 2026-07-13.</p>
+      <p class="note" style="margin-bottom:.6rem">Meta declines to detail decision rationale; re-review invited.</p>
+      <h3 style="font-size:.85rem;margin:.6rem 0 .3rem;color:var(--accent)">Records</h3>
+      <ul style="margin-left:1.1rem"><li><a href="source/raw/meta-bugbounty-response-20260715.txt">Meta BB disposition letter (2026-07-15)</a></li><li><a href="source/vendor/meta--meta_2ndreport_communications.md">Second report communications</a></li><li><a href="dossier-meta.html">Meta dossier</a></li></ul>
+    </section>
+    <section class="card" id="v-flock">
+      <h2><span class="dot" style="background:#f472b6;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.5rem"></span>Flock Safety PSIRT</h2>
+      <p class="note" style="margin-bottom:.4rem"><strong>Case:</strong> Reference teal-lynx</p>
+      <p style="margin-bottom:.6rem">PSIRT follow-up (Segment + Datadog RUM) sent with 10 provenance questions; awaiting reproduction + security-impact analysis. Planned CERT/CC coordination date 2026-09-05.</p>
+      <p class="note" style="margin-bottom:.6rem">Live write keys redacted in public copies.</p>
+      <h3 style="font-size:.85rem;margin:.6rem 0 .3rem;color:var(--accent)">Records</h3>
+      <ul style="margin-left:1.1rem"><li><a href="source/raw/flock-psirt-followup-teal-lynx-2026.md">PSIRT follow-up (teal-lynx)</a></li><li><a href="source/vendor/flock--flock_segment_report.md">Segment report</a></li><li><a href="dossier-flock.html">Flock dossier</a></li></ul>
+    </section>
+    <section class="card" id="v-linkedin">
+      <h2><span class="dot" style="background:#00d0ff;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.5rem"></span>LinkedIn Security</h2>
+      <p class="note" style="margin-bottom:.4rem"><strong>Case:</strong> — (email to security@linkedin.com)</p>
+      <p style="margin-bottom:.6rem">Submitted 2026-07-12 via security@linkedin.com; no further public disposition in the record.</p>
+      <p class="note" style="margin-bottom:.6rem">As-reported severity table reproduced in dossier; downstream claims flagged as requiring LinkedIn-side confirmation per whitepaper boundaries.</p>
+      <h3 style="font-size:.85rem;margin:.6rem 0 .3rem;color:var(--accent)">Records</h3>
+      <ul style="margin-left:1.1rem"><li><a href="source/raw/linkedin-disclosure-2026-07-12.md">Disclosure email (2026-07-12)</a></li><li><a href="source/vendor/linkedin--report.md">LinkedIn report</a></li><li><a href="dossier-linkedin.html">LinkedIn dossier</a></li></ul>
+    </section>
+    <section class="card" id="v-apple">
+      <h2><span class="dot" style="background:#94a3b8;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.5rem"></span>Apple Security Bounty</h2>
+      <p class="note" style="margin-bottom:.4rem"><strong>Case:</strong> OE110716814418</p>
+      <p style="margin-bottom:.6rem">Under review per correspondence (2026-07).</p>
+      <p class="note" style="margin-bottom:.6rem">metrics.icloud.com/metrics + diagnostics.apple.com/telemetry.</p>
+      <h3 style="font-size:.85rem;margin:.6rem 0 .3rem;color:var(--accent)">Records</h3>
+      <ul style="margin-left:1.1rem"><li><a href="source/vendor/apple--submission.md">Apple submission</a></li><li><a href="source/vendor/apple--report_details.md">Report details</a></li><li><a href="dossier-apple.html">Apple dossier</a></li></ul>
+    </section>
+    <section class="card" id="v-tencent">
+      <h2><span class="dot" style="background:#a78bfa;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.5rem"></span>Tencent TSRC</h2>
+      <p class="note" style="margin-bottom:.4rem"><strong>Case:</strong> — (TSRC)</p>
+      <p style="margin-bottom:.6rem">Report prepared; submission per TSRC process.</p>
+      <p class="note" style="margin-bottom:.6rem">h.trace.qq.com/kv.</p>
+      <h3 style="font-size:.85rem;margin:.6rem 0 .3rem;color:var(--accent)">Records</h3>
+      <ul style="margin-left:1.1rem"><li><a href="source/vendor/tencent--tencent.md">Tencent report</a></li><li><a href="dossier-tencent.html">Tencent dossier</a></li></ul>
+    </section>
+    <section class="card" id="v-amazon">
+      <h2><span class="dot" style="background:#ff9900;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.5rem"></span>Amazon VRP</h2>
+      <p class="note" style="margin-bottom:.4rem"><strong>Case:</strong> — (VRP)</p>
+      <p style="margin-bottom:.6rem">Report filed; protobuf-format injection requires further testing per NOT-VULN notes (inconclusive).</p>
+      <p class="note" style="margin-bottom:.6rem">Inconclusive — no confirmed injection claimed.</p>
+      <h3 style="font-size:.85rem;margin:.6rem 0 .3rem;color:var(--accent)">Records</h3>
+      <ul style="margin-left:1.1rem"><li><a href="source/vendor/amazon--amazon_vrp.md">Amazon VRP report</a></li><li><a href="dossier-amazon.html">Amazon dossier</a></li><li><a href="dossiers.html#negative">Negative results</a></li></ul>
+    </section>
+    <section class="card" id="v-baidu">
+      <h2><span class="dot" style="background:#ff3d81;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.5rem"></span>Baidu / CNZZ / Umeng</h2>
+      <p class="note" style="margin-bottom:.4rem"><strong>Case:</strong> — (BSRC / Alibaba)</p>
+      <p style="margin-bottom:.6rem">Reports prepared for BSRC (Baidu) + Alibaba security (CNZZ/Umeng).</p>
+      <p class="note" style="margin-bottom:.6rem">Documented in master report + endpoints registry.</p>
+      <h3 style="font-size:.85rem;margin:.6rem 0 .3rem;color:var(--accent)">Records</h3>
+      <ul style="margin-left:1.1rem"><li class="note">—</li></ul>
+    </section>
+    <section class="card" id="v-matomo">
+      <h2><span class="dot" style="background:#ffd166;display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:.5rem"></span>Matomo</h2>
+      <p class="note" style="margin-bottom:.4rem"><strong>Case:</strong> —</p>
+      <p style="margin-bottom:.6rem">Open-source tracker class; report prepared.</p>
+      <p class="note" style="margin-bottom:.6rem">demo.matomo.org + self-hosted class (1M+ instances).</p>
+      <h3 style="font-size:.85rem;margin:.6rem 0 .3rem;color:var(--accent)">Records</h3>
+      <ul style="margin-left:1.1rem"><li class="note">—</li></ul>
+    </section>
+  <div class="card"><h2>Re-verification &amp; negative results</h2>
+  <ul><li><a href="docs/reverification-2026-09-04.md">Post-disclosure re-verification (2026-09-04)</a></li>
+  <li><a href="dossiers.html">Negative results — tested, not vulnerable (Tesla / Oracle / ICS / Amazon)</a></li></ul></div>
 </main>
 <footer class="site-footer"><div class="container">
-<p>&copy; 2026 Church of Malware &middot; <a href="https://churchofmalware.org">churchofmalware.org</a> &middot; <a href="index.html">triage home</a></p>
+<p>© 2026 Church of Malware · <a href="https://churchofmalware.org">churchofmalware.org</a></p>
 <p class="note">Public-interest disclosure. No exploit code; no instructions enabling harm. TLP:CLEAR.</p>
 </div></footer>
-</body>
-</html>
+</body></html>

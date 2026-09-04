@@ -9,8 +9,8 @@ NAV = """
   <a href="index.html">Home</a>
   <a href="whitepaper.html">Whitepaper</a>
   <a href="master-report.html">Master Report</a>
+  <a href="vrp-correspondence.html">VRP Correspondence</a>
   <a href="legal-annex.html">Legal Annex</a>
-  <a href="source/whitepaper.md" class="src">source</a>
 </div></nav>
 """
 
@@ -42,12 +42,11 @@ TEMPLATE = """<!DOCTYPE html>
 
 def gen(src, out, title, desc):
     text = open(src, encoding="utf-8").read()
-    # pull the top H1 out of body (already in title) but keep for document structure
+    # strip markdown H1 (title lives in the template) but keep a styled doc title
     body = markdown.markdown(
         text,
         extensions=["tables", "fenced_code", "sane_lists", "nl2br"],
     )
-    # upgrade H1 -> styled doc header
     body = re.sub(r"<h1>(.*?)</h1>", r'<div class="doc-title">\1</div>', body, count=1)
     page = TEMPLATE.format(title=title, desc=desc, nav=NAV, body=body)
     open(out, "w", encoding="utf-8").write(page)
@@ -63,3 +62,6 @@ if __name__ == "__main__":
     gen("source/legal-annex.md", "legal-annex.html",
         "Legal Annex — Telemetry Integrity: Potential Legal and Regulatory Considerations",
         "Research note on laws, regulations, and standards potentially relevant to unauthenticated, attacker-controlled telemetry.")
+    gen("source/vrp-correspondence.md", "vrp-correspondence.html",
+        "Google VRP Correspondence — Android Check-In Telemetry Provenance",
+        "Researcher correspondence with Google VRP on android.googleapis.com/checkin — corrected report and provenance questions.")

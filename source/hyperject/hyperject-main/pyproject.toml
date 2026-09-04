@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hyperject"
+version = "0.8.0"
+description = "Unified breach-and-attack-simulation telemetry-injection tool for detection engineering"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "project-hyperject" }]
+keywords = ["bas", "breach-attack-simulation", "detection-engineering", "telemetry", "blue-team"]
+dependencies = ["requests>=2.25"]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+# Drive the REAL OpenTelemetry / Azure Monitor exporters via `hyperject capture
+# --source sdk` and `--diff`. The core tool needs none of these — it ships a
+# built-in protobuf codec (hyperject.proto) for OTLP binary payloads.
+otel = [
+    "opentelemetry-sdk>=1.20",
+    "opentelemetry-exporter-otlp-proto-http>=1.20",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20",
+    "azure-monitor-opentelemetry>=1.0",
+]
+
+[project.scripts]
+hyperject = "hyperject.cli:main"
+
+# External plugins can register additional targets under this entry-point group:
+#   [project.entry-points."hyperject.modules"]
+#   my_target = "my_pkg.my_module:MyTargetModule"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

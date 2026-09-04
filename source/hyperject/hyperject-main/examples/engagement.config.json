@@ -1,0 +1,40 @@
+{
+  "_comment": "Filled example for ONE authorized endpoint. Everything below is a real (non-placeholder) value. To use against your target: change the endpoint host under modules.app_insights.endpoints AND the matching middleware.allowlist.hosts entry, then drop in your test iKey. Run: hyperject validate -c engagement.config.json  then  hyperject run -c engagement.config.json",
+
+  "run": {
+    "count": 20,
+    "timeout": 15,
+    "rate_limit_delay": 0.1,
+    "output": "engagement-results.json",
+    "max_attempts": 3,
+    "proxy": null
+  },
+
+  "modules": {
+    "app_insights": {
+      "enabled": true,
+      "description": "App Insights ingest (engagement target)",
+      "endpoints": ["https://appinsights.lab.internal/v2.1/track"],
+      "ikeys": ["11111111-2222-3333-4444-555555555555"],
+      "accept_field": "itemsAccepted"
+    }
+  },
+
+  "techniques": {
+    "large_payload_bytes": 50000,
+    "covert_field": {
+      "enabled": true,
+      "field": "ai.application.ver",
+      "marker": "SIMULATED_C2_MARKER"
+    }
+  },
+
+  "middleware": [
+    { "name": "allowlist",       "options": { "hosts": ["appinsights.lab.internal"] } },
+    { "name": "tag_correlation", "options": { "header": "X-Engagement", "value": "authorized-test-2026-07" } }
+  ],
+
+  "transcript": {
+    "redact": ["ikey", "iKey", "apikey", "authorization", "security_token"]
+  }
+}

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>Hyperject — Telemetry-Injection BAS + Detection Tool</title>
+<meta name="description" content="Hyperject: unified breach-and-attack-simulation tool for telemetry-injection techniques plus the detection half of the loop. Built by tjnull for Church of Malware research.">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<nav class="site-nav"><div class="container">
+  <a href="index.html">Home</a> <a href="whitepaper.html">Whitepaper</a>
+  <a href="endpoints.html">Endpoints</a> <a href="galaxy.html">Galaxy</a>
+  <a href="threat-map.html">Threat Map</a> <a href="master-report.html">Master Report</a>
+  <a href="dossiers.html">Dossiers</a> <a href="vrp-correspondence.html">Correspondence</a>
+  <a href="hyperject.html">Hyperject</a> <a href="hyperject.html">Hyperject</a> <a href="legal-annex.html">Legal</a>
+</div></nav>
+
+<header class="site-header">
+  <div class="container">
+    <div class="kicker">Church of Malware · Tooling</div>
+    <h1>Hyperject</h1>
+    <p class="subtitle">Unified breach-and-attack-simulation (BAS) tool for
+    telemetry-injection techniques — plus the detection half of the loop.</p>
+    <div class="badge-row">
+      <span class="badge badge-accent">Built by tjnull</span>
+      <span class="badge">for Church of Malware telemetry research</span>
+      <span class="badge">MIT</span>
+      <span class="badge">v0.8.0</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <section class="card">
+    <h2>What it is</h2>
+    <p>Hyperject consolidates the per-target PoCs from this research into one config-driven
+    package with a <strong>plugin module system</strong>. Each target is its own
+    self-contained file — 37 modules covering the telemetry ecosystems triaged in this
+    disclosure. It sends injection techniques (basic / bulk / large / covert) to a target
+    and classifies each response as <strong>EXPOSED</strong>, <strong>auth-required</strong>,
+    or <strong>rejected</strong>. The <code>detect</code> side reviews an ingest log and
+    confirms which techniques got through — the blue-team half of the loop.</p>
+    <div class="note" style="margin-top:.6rem">Two clearly separated areas in the repo:</div>
+    <ul>
+      <li><code>source-files/</code> — original PoC scripts, untouched reference. The tooling
+      never reads, writes, or imports from here.</li>
+      <li><code>hyperject-main/</code> — the <code>hyperject</code> pipx-installable package.
+      No built-in targets or credentials; runtime files (<code>config.json</code>,
+      <code>results.json</code>, <code>ingest.log.jsonl</code>) are generated in the
+      directory you run from.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Safety model</h2>
+    <ul>
+      <li><strong>No built-in targets or credentials.</strong> Every endpoint and key comes
+      from <em>your</em> <code>config.json</code>; the tool refuses to run against
+      placeholder values.</li>
+      <li>Point it at the built-in <strong>mock collector</strong> (default) or an
+      <strong>authorized lab range you control</strong> — never at third-party production
+      infrastructure.</li>
+      <li><code>hyperject run --dry-run</code> builds and prints payloads without sending
+      anything.</li>
+      <li>Intercepting proxy passthrough, request/response middleware, and a host
+      <strong>allowlist</strong> safety guard included.</li>
+    </ul>
+    <p class="note">This site hosts no third-party targets and no credentials. Use Hyperject
+    only against systems you own or are authorized to test.</p>
+  </section>
+
+  <section class="card">
+    <h2>Quick start</h2>
+    <pre><code>pipx install ./hyperject-main
+hyperject mock --port 8080 &        # 1. safe local target
+hyperject init                      # 2. scaffold config.json from discovered modules
+hyperject run --dry-run             #    preview (no traffic)
+hyperject run                       # 3. generate injection traffic, record verdicts
+hyperject detect ingest.log.jsonl   # 4. confirm every technique is detected</code></pre>
+    <p>Commands: <code>run</code> · <code>list</code> · <code>init</code> ·
+    <code>validate</code> · <code>mock</code> · <code>detect</code> ·
+    <code>capture</code> · <code>export</code>. Full reference in the
+    <a href="source/hyperject/hyperject-main/docs/README.md">wiki</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Target modules (37)</h2>
+    <p><span class="note">One self-contained module per telemetry ecosystem — mirroring the
+    <a href="endpoints.html">endpoints registry</a>:</span></p>
+    <p style="font-size:.83rem;line-height:2">app_insights · one_collector · azmon_breeze ·
+    azure_log_analytics · availability_webtest · checkin (Android) · ga4 · facebook_pixel ·
+    pixel_analytics · segment · amplitude · mixpanel · posthog · snowplow · matomo ·
+    live_metrics · sentry · new_relic · datadog · dynatrace · honeycomb · elasticsearch ·
+    elastic_apm · splunk_hec · graylog_gelf · loki · influxdb · prometheus_remote_write ·
+    pushgateway · cloudwatch_logs · gcp_logging · zipkin · otlp · kv_trace · apple_metrics ·
+    stored_xss · other protocols</p>
+  </section>
+
+  <section class="card">
+    <h2>Source</h2>
+    <p>Full package + docs vendored in this repo under
+    <a href="source/hyperject/hyperject-main/README.md"><code>source/hyperject/</code></a> —
+    mirrored from the project repo. Built by <strong>tjnull</strong> for the Church of
+    Malware telemetry-injection research; MIT licensed. Canonical public repo forthcoming.</p>
+    <ul>
+      <li><a href="source/hyperject/hyperject-main/README.md">Package README</a></li>
+      <li><a href="source/hyperject/hyperject-main/docs/README.md">Wiki index</a></li>
+      <li><a href="source/hyperject/hyperject-main/docs/concepts.md">Concepts</a> ·
+      <a href="source/hyperject/hyperject-main/docs/modules.md">Modules</a> ·
+      <a href="source/hyperject/hyperject-main/docs/middleware.md">Middleware</a> ·
+      <a href="source/hyperject/hyperject-main/docs/keys.md">Keys</a></li>
+      <li><a href="source/hyperject/source-files/">Original PoC reference scripts</a></li>
+    </ul>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="container">
+  <p>© 2026 Church of Malware · <a href="https://churchofmalware.org">churchofmalware.org</a></p>
+  <p class="note">Hyperject: research tooling for authorized testing only. No third-party
+  targets, no credentials, no instructions enabling harm against systems you do not own.</p>
+</div></footer>
+</body>
+</html>

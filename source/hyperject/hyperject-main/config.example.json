@@ -1,0 +1,135 @@
+{
+  "_comment": "Reference only. Run 'hyperject init' to generate a live config.json from the discovered modules. Fill targets/keys with values YOU own; the tool refuses to run against REPLACE_ placeholders.",
+
+  "run": { "count": 10, "timeout": 10, "rate_limit_delay": 0.2, "output": "results.json" },
+
+  "modules": {
+    "checkin": {
+      "enabled": true,
+      "description": "device check-in ingest",
+      "base_url": "http://127.0.0.1:8080/checkin",
+      "accept_field": "stats_ok",
+      "device_profiles": [
+        { "device": "sim-device", "manufacturer": "sim-vendor", "model": "Sim Model", "sdk": "29" }
+      ]
+    },
+    "app_insights": {
+      "enabled": true,
+      "description": "app-insights ingest",
+      "_note": "Multiple endpoints and multiple iKeys are supported (each endpoint x iKey is probed). An iKey may be a bare GUID string, or an annotated object {ikey,label} so the label shows in results. Put YOUR authorized iKeys here.",
+      "endpoints": [
+        "http://127.0.0.1:8080/v2.1/track"
+      ],
+      "ikeys": [
+        "REPLACE_WITH_YOUR_OWN_TEST_IKEY",
+        { "ikey": "REPLACE_WITH_ANOTHER_TEST_IKEY", "label": "example-app-name" }
+      ],
+      "accept_field": "itemsAccepted"
+    },
+    "one_collector": {
+      "enabled": true,
+      "description": "onecollector ingest",
+      "_note": "Multiple endpoints and multiple keys supported. Each key = {key, ikey, origin}. If 'origin' contains 'portal' or 'login' the matching browser Origin/Referer is spoofed automatically; or set 'origin_url' explicitly. 'label' (optional) shows in results.",
+      "endpoints": [
+        "http://127.0.0.1:8080/OneCollector/1.0/"
+      ],
+      "keys": [
+        { "key": "REPLACE_WITH_YOUR_OWN_TEST_KEY", "ikey": "REPLACE_WITH_YOUR_OWN_TEST_IKEY", "origin": "lab", "label": "example-service" }
+      ],
+      "accept_status": 204
+    },
+    "otlp": {
+      "enabled": true,
+      "description": "opentelemetry OTLP/HTTP ingest",
+      "_note": "OTLP/HTTP root (real collectors listen on :4318). Signal paths /v1/traces|metrics|logs are appended. 'encoding' is 'json' or 'protobuf' (real binary OTLP via the built-in codec). Add 'headers' (e.g. {\"Authorization\": \"Bearer TEST\"}) to probe an authenticated collector.",
+      "base_url": "http://127.0.0.1:8080",
+      "signals": ["traces", "metrics", "logs"],
+      "encoding": "json",
+      "service_name": "hyperject-bas",
+      "headers": {}
+    },
+    "live_metrics": {
+      "enabled": true,
+      "description": "azure-monitor Live Metrics (QuickPulse) ingest",
+      "_note": "Live Metrics base = the connection string's LiveEndpoint (real: https://<region>.livediagnostics.monitor.azure.com). /QuickPulseService.svc/ping|post is appended. Use endpoints+ikeys or paste 'connection_strings'.",
+      "endpoints": ["http://127.0.0.1:8080"],
+      "ikeys": ["REPLACE_WITH_YOUR_OWN_TEST_IKEY"],
+      "connection_strings": [],
+      "actions": ["ping", "post"],
+      "role_name": "hyperject-bas",
+      "accept_status": 200
+    },
+    "azmon_breeze": {
+      "enabled": true,
+      "description": "azure-monitor OTel breeze envelope ingest",
+      "_note": "Sends the Breeze envelopes the Azure Monitor OpenTelemetry exporter emits. Use endpoints+ikeys, or paste an Azure Monitor connection string under 'connection_strings' (each carries its own ingestion endpoint + ikey). The 'covert' variant forges a Foundry gen_ai.evaluation.result MessageData.",
+      "endpoints": ["http://127.0.0.1:8080/v2.1/track"],
+      "ikeys": ["REPLACE_WITH_YOUR_OWN_TEST_IKEY"],
+      "connection_strings": [],
+      "envelope_types": ["RequestData", "RemoteDependencyData", "MessageData"],
+      "cloud_role": "hyperject-bas",
+      "accept_field": "itemsAccepted"
+    },
+    "availability_webtest": {
+      "enabled": false,
+      "description": "app-insights availability web-test (ARM control plane)",
+      "_note": "Control plane (ARM PUT), not ingestion: secure outcome is 401/403. Fill subscription_id/resource_group/component_id with values YOU own and set 'bearer_token' for an authorized create. Disabled by default.",
+      "base_url": "http://127.0.0.1:8080",
+      "api_version": "2022-06-15",
+      "subscription_id": "REPLACE_WITH_YOUR_SUBSCRIPTION_ID",
+      "resource_group": "REPLACE_WITH_YOUR_RESOURCE_GROUP",
+      "component_id": "REPLACE_WITH_YOUR_APPINSIGHTS_RESOURCE_ID",
+      "webtest_name": "hyperject-availability",
+      "kind": "ping",
+      "location": "South Central US",
+      "geo_locations": ["us-fl-mia-edge"],
+      "request_url": "http://127.0.0.1:8080/health",
+      "http_verb": "GET",
+      "expected_status": 200,
+      "frequency": 300,
+      "timeout": 30,
+      "bearer_token": ""
+    },
+    "prometheus_remote_write": {
+      "enabled": true,
+      "description": "prometheus remote-write ingest",
+      "_note": "Metrics receiver (real: /api/v1/write on Prometheus, Mimir, Cortex, Thanos, VictoriaMetrics). Body is Snappy-compressed protobuf (built-in codec, no deps). Add 'headers' to probe an authenticated receiver.",
+      "endpoint": "http://127.0.0.1:8080/api/v1/write",
+      "job": "hyperject-bas",
+      "headers": {}
+    },
+    "loki": {
+      "enabled": true,
+      "description": "grafana loki push ingest",
+      "_note": "Log push (real: /loki/api/v1/push). 'encoding' is 'protobuf' (Snappy-compressed logproto) or 'json'. Set 'org_id' to send an X-Scope-OrgID tenant header.",
+      "endpoint": "http://127.0.0.1:8080/loki/api/v1/push",
+      "encoding": "protobuf",
+      "org_id": "",
+      "labels": { "job": "hyperject-bas", "level": "info" }
+    },
+    "zipkin": {
+      "enabled": true,
+      "description": "zipkin v2 span ingest",
+      "_note": "Trace collector (real: /api/v2/spans, returns 202). 'encoding' is 'json' or 'protobuf' (zipkin.proto3 ListOfSpans).",
+      "endpoint": "http://127.0.0.1:8080/api/v2/spans",
+      "encoding": "json",
+      "service_name": "hyperject-bas",
+      "headers": {}
+    },
+    "kv_trace": {
+      "enabled": true,
+      "description": "kv/pixel POST ingest",
+      "endpoint": "http://127.0.0.1:8080/kv"
+    },
+    "pixel_analytics": {
+      "enabled": true,
+      "description": "GET pixel ingest",
+      "endpoint": "http://127.0.0.1:8080/hm.gif"
+    }
+  },
+
+  "techniques": {
+    "large_payload_bytes": 50000,
+    "covert_field": { "enabled": true, "field": "app.version", "marker": "SIMULATED_C2_MARKER" }
+  }
+}

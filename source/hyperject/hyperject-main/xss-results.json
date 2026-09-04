@@ -1,0 +1,185 @@
+[
+  {
+    "module": "stored_xss",
+    "technique": "basic",
+    "target": "http://127.0.0.1:8080/tongji/hm.gif [pixel]",
+    "sent": 9,
+    "accepted": 9,
+    "auth_required": 0,
+    "rejected": 0,
+    "errors": 0,
+    "status_codes": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "accepted_all": true
+  },
+  {
+    "module": "stored_xss",
+    "technique": "basic",
+    "target": "http://127.0.0.1:8080/vuln/loki/push [loki]",
+    "sent": 9,
+    "accepted": 9,
+    "auth_required": 0,
+    "rejected": 0,
+    "errors": 0,
+    "status_codes": [
+      204,
+      204,
+      204,
+      204,
+      204,
+      204,
+      204,
+      204,
+      204
+    ],
+    "accepted_all": true
+  },
+  {
+    "module": "stored_xss",
+    "technique": "basic",
+    "target": "http://127.0.0.1:8080/vuln/es/_doc [elasticsearch]",
+    "sent": 9,
+    "accepted": 9,
+    "auth_required": 0,
+    "rejected": 0,
+    "errors": 0,
+    "status_codes": [
+      201,
+      201,
+      201,
+      201,
+      201,
+      201,
+      201,
+      201,
+      201
+    ],
+    "accepted_all": true
+  },
+  {
+    "module": "stored_xss",
+    "technique": "basic",
+    "target": "http://127.0.0.1:8080/vuln/splunk/event [splunk]",
+    "sent": 9,
+    "accepted": 9,
+    "auth_required": 0,
+    "rejected": 0,
+    "errors": 0,
+    "status_codes": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "accepted_all": true
+  },
+  {
+    "module": "stored_xss",
+    "technique": "basic",
+    "target": "http://127.0.0.1:8080/vuln/blind/collect [blind]",
+    "sent": 2,
+    "accepted": 0,
+    "auth_required": 0,
+    "rejected": 2,
+    "errors": 0,
+    "status_codes": [
+      200,
+      200
+    ],
+    "accepted_all": false
+  },
+  {
+    "module": "stored_xss",
+    "technique": "bulk",
+    "target": "http://127.0.0.1:8080/tongji/hm.gif [pixel] [flood]",
+    "sent": 3,
+    "accepted": 3,
+    "auth_required": 0,
+    "rejected": 0,
+    "errors": 0,
+    "status_codes": [
+      200,
+      200,
+      200
+    ],
+    "accepted_all": true
+  },
+  {
+    "module": "stored_xss",
+    "technique": "bulk",
+    "target": "http://127.0.0.1:8080/vuln/loki/push [loki] [flood]",
+    "sent": 3,
+    "accepted": 3,
+    "auth_required": 0,
+    "rejected": 0,
+    "errors": 0,
+    "status_codes": [
+      204,
+      204,
+      204
+    ],
+    "accepted_all": true
+  },
+  {
+    "module": "stored_xss",
+    "technique": "bulk",
+    "target": "http://127.0.0.1:8080/vuln/es/_doc [elasticsearch] [flood]",
+    "sent": 3,
+    "accepted": 3,
+    "auth_required": 0,
+    "rejected": 0,
+    "errors": 0,
+    "status_codes": [
+      201,
+      201,
+      201
+    ],
+    "accepted_all": true
+  },
+  {
+    "module": "stored_xss",
+    "technique": "bulk",
+    "target": "http://127.0.0.1:8080/vuln/splunk/event [splunk] [flood]",
+    "sent": 3,
+    "accepted": 3,
+    "auth_required": 0,
+    "rejected": 0,
+    "errors": 0,
+    "status_codes": [
+      200,
+      200,
+      200
+    ],
+    "accepted_all": true
+  },
+  {
+    "module": "stored_xss",
+    "technique": "bulk",
+    "target": "http://127.0.0.1:8080/vuln/blind/collect [blind] [flood]",
+    "sent": 3,
+    "accepted": 0,
+    "auth_required": 0,
+    "rejected": 3,
+    "errors": 0,
+    "status_codes": [
+      200,
+      200,
+      200
+    ],
+    "accepted_all": false
+  }
+]

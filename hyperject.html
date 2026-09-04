@@ -98,6 +98,39 @@ hyperject detect ingest.log.jsonl   # 4. confirm every technique is detected</co
     stored_xss · other protocols</p>
   </section>
 
+
+  <section class="card">
+    <h2>How it pinpoints telemetry-injection flaws</h2>
+    <p>Hyperject automates the exact recon loop this research used — then makes the result
+    reviewable, repeatable, and defensible:</p>
+    <ol style="margin-left:1.2rem">
+      <li><strong>Probe the boundary.</strong> Each module crafts real protocol-valid events
+      (JSON, form, pixel, OTLP/protobuf — per-format rows) against one target
+      endpoint, using <em>your</em> config keys. <code>--dry-run</code> prints every payload
+      before anything is sent.</li>
+      <li><strong>Classify the answer.</strong> Every response is scored:
+      <code>EXPOSED</code> = accepted injected telemetry with no required auth;
+      <code>auth-required</code> = 401/403 (secure); <code>rejected</code> = other. The
+      verdict lands per target <em>and</em> per format — so you see <em>which encoding</em>
+      is the open one, not just that a host answered.</li>
+      <li><strong>Grade the techniques.</strong> Four payload grades — <code>basic</code>
+      (single event), <code>bulk</code> (flood/volume), <code>large</code> (oversized
+      payload), <code>covert</code> (data hidden in a telemetry field, e.g. C2
+      simulation) — expose whether the ingest accepts only clean events or tolerates
+      abuse-shaped ones.</li>
+      <li><strong>Capture the evidence.</strong> Full request/response transcripts
+      (JSON / JSONL / HAR / pretty), live colorized streams, and saved responses — the raw
+      material for a defensible disclosure file, ready for canary tracing with the vendor.</li>
+      <li><strong>Close the loop (blue team).</strong> Point <code>detect</code> at the
+      endpoint's ingest log and confirm each technique is caught — turning the same probes
+      into detection tests. The built-in mock collector and host-allowlist middleware make
+      this safe to run locally.</li>
+    </ol>
+    <p class="note">One caveat the tool is built around: a verdict of <code>EXPOSED</code>
+    means the ingestion boundary accepted the event — it does not by itself prove storage,
+    trusted use, or downstream impact. That boundary is exactly the line this site's
+    <a href="whitepaper.html">whitepaper</a> draws.</p>
+  </section>
   <section class="card">
     <h2>Source</h2>
     <p>Full package + docs vendored in this repo under

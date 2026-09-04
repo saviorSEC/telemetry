@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>Unauthenticated Telemetry Injection — Triage &amp; Disclosure</title>
+<meta name="description" content="Church of Malware coordinated disclosure: unauthenticated telemetry injection across major telemetry ecosystems. Whitepaper, triage master report, and legal annex.">
+<meta property="og:title" content="Unauthenticated Telemetry Injection — Triage">
+<meta property="og:description" content="Church of Malware coordinated disclosure — embargo lifted 2026-09-04.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<nav class="site-nav"><div class="container">
+  <a href="index.html">Home</a>
+  <a href="whitepaper.html">Whitepaper</a>
+  <a href="master-report.html">Master Report</a>
+  <a href="legal-annex.html">Legal Annex</a>
+  <a href="source/whitepaper.md" class="src">source</a>
+</div></nav>
+
+<header class="site-header">
+  <div class="container">
+    <div class="kicker">Church of Malware · Coordinated Disclosure</div>
+    <h1>Unauthenticated Telemetry Injection</h1>
+    <p class="subtitle">Triage of public-facing telemetry ingestion endpoints accepting unauthenticated
+    writes — and the data-provenance question that determines what it means.</p>
+    <div class="badge-row">
+      <span class="badge badge-warn">Embargo lifted: 2026-09-04</span>
+      <span class="badge badge-accent">TLP:CLEAR</span>
+      <span class="badge">Whitepaper v1.0 · Sep 2026</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <section id="credits" class="card">
+    <h2>Researchers</h2>
+    <ul class="credits">
+      <li><strong>ek0ms savi0r</strong> — Church of Malware (lead)</li>
+      <li><strong>k3nundrum</strong></li>
+      <li><strong>tjnull</strong></li>
+    </ul>
+    <p class="note">Independent security research. Findings developed and disclosed under coordinated
+    disclosure; the embargo ended 2026-09-04. Prepared for Church of Malware. Analysis by K3nundrum,
+    Tjnull &amp; ek0ms savi0r.</p>
+  </section>
+
+  <section id="executive-summary" class="card">
+    <h2>Executive Summary</h2>
+    <p class="lead">Multiple production telemetry collectors across major ecosystems accept
+    <strong>synthetic, externally generated events without authenticating the producer</strong> as an
+    authoritative source. That fact alone does not establish downstream compromise — but it opens the
+    critical question this research is built around:</p>
+    <blockquote><p>If unverified telemetry is retained, do server-controlled provenance controls remain
+    durable and machine-actionable through every downstream stage — or can attacker-supplied records
+    silently acquire the trust characteristics of verified observations?</p></blockquote>
+    <p>The decisive property is a <strong>server-authoritative distinction between verified and unverified
+    producers</strong> that survives normalization, storage, transformation, aggregation, export, alerting,
+    and model pipelines. When that distinction is lost, telemetry injection becomes a
+    <strong>data-provenance and trust-boundary failure</strong> — not merely "fake analytics."</p>
+    <p class="note">Scope note: this site's documents distinguish confirmed ingestion-boundary behavior
+    from downstream effects that cannot be independently verified from an external position. They do not
+    claim that every unauthenticated telemetry collector is vulnerable, nor that every tested platform
+    stores untrusted records with trusted records.</p>
+  </section>
+
+  <section id="scope" class="card">
+    <h2>Affected Ecosystems Investigated</h2>
+    <table>
+      <thead><tr><th>Ecosystem</th><th>Surface</th><th>Status (per disclosure record)</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Microsoft</strong></td><td>Application Insights · OneCollector/1DS (incl. regional endpoints)</td><td>MSRC triage — VULN-193698, VULN-200045</td></tr>
+        <tr><td><strong>Google / Android</strong></td><td>Check-In protocol (incl. Waymo vehicle fields) · GA4 collect</td><td>VRP active investigation</td></tr>
+        <tr><td><strong>Apple</strong></td><td>iCloud metrics · diagnostics telemetry</td><td>Under review</td></tr>
+        <tr><td><strong>Meta</strong></td><td>Pixel/tr · internal log &amp; metrics · Ray-Ban Meta wearables DAT</td><td>Submitted (bug bounty)</td></tr>
+        <tr><td><strong>LinkedIn</strong></td><td>px/dc/ads telemetry (39+ endpoints)</td><td>Submitted</td></tr>
+        <tr><td><strong>Baidu</strong></td><td>hm.gif · nsclick tracking family</td><td>Reported (BSRC)</td></tr>
+        <tr><td><strong>CNZZ / Umeng (Alibaba)</strong></td><td>mmstat · z_stat tracking family</td><td>Reported</td></tr>
+        <tr><td><strong>Tencent</strong></td><td>h.trace.qq.com/kv</td><td>Reported (TSRC)</td></tr>
+        <tr><td><strong>Matomo</strong></td><td>matomo.php (self-hosted class)</td><td>Reported</td></tr>
+        <tr><td><strong>Flock Safety</strong></td><td>Segment-backed analytics (exposed write key)</td><td>Reported</td></tr>
+      </tbody>
+    </table>
+    <p class="note">80+ ingestion endpoints were exercised across 10 organizations. See the
+    <a href="master-report.html">master report</a> for the endpoint-level triage and
+    <a href="whitepaper.html">whitepaper</a> for the analysis framework and claim boundaries.</p>
+  </section>
+
+  <section id="documents" class="card">
+    <h2>Documents</h2>
+    <ul>
+      <li><a href="whitepaper.html"><strong>Whitepaper — Unauthenticated Telemetry Injection and the Collapse of Data Provenance</strong></a>
+        <br><span class="note">Full analysis: telemetry as evidence, provenance as a security property,
+        the four-stage assessment model, server-controlled provenance architecture, severity framework,
+        and vendor-validation (canary-trace) guidance.</span></li>
+      <li><a href="master-report.html"><strong>Master Report — Global Triage</strong></a>
+        <br><span class="note">Vendor-by-vendor triage: endpoints, observed responses, attack
+        capabilities confirmed at the ingestion boundary, and reporting status.</span></li>
+      <li><a href="legal-annex.html"><strong>Legal Annex — Telemetry Integrity: Legal &amp; Regulatory Considerations</strong></a>
+        <br><span class="note">Research note mapping relevant laws/regulations (GDPR, NIS2, EU AI Act, FTC,
+        GLBA, HIPAA, state privacy laws, NIST frameworks) with explicit guidance on claims that require
+        vendor confirmation.</span></li>
+    </ul>
+    <p class="note">Raw markdown sources: <a href="source/whitepaper.md">whitepaper.md</a> ·
+    <a href="source/master-report.md">master-report.md</a> · <a href="source/legal-annex.md">legal-annex.md</a></p>
+  </section>
+
+  <section id="ethics" class="card">
+    <h2>Method &amp; Boundaries</h2>
+    <ul>
+      <li><strong>Accepted ≠ retained.</strong> An HTTP 200 / <code>itemsAccepted</code> response
+      demonstrates ingestion semantics, not permanent storage or trusted downstream use.</li>
+      <li><strong>Parsed text ≠ execution.</strong> Caller-controlled fields accepted into a schema are
+      data unless execution is separately demonstrated.</li>
+      <li><strong>AI poisoning requires downstream evidence</strong> — the risk is architectural, not a
+      confirmed finding per target.</li>
+      <li><strong>Unique harmless canaries</strong> were preferred over destructive payloads; canary
+      tracing is the recommended bridge to vendor-side validation.</li>
+      <li>No exploit code, no instructions enabling harm. Public-interest disclosure only.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>© 2026 Church of Malware · <a href="https://churchofmalware.org">churchofmalware.org</a></p>
+    <p class="note">This site is a public-interest disclosure. It contains no exploit code and no instructions that enable harm.</p>
+  </div>
+</footer>
+</body>
+</html>

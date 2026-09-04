@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>Whitepaper — Unauthenticated Telemetry Injection and the Collapse of Data Provenance</title>
+<meta name="description" content="Church of Malware whitepaper: telemetry provenance, trust boundaries, and unauthenticated ingestion — assessment model and claim boundaries.">
+<meta property="og:title" content="Whitepaper — Unauthenticated Telemetry Injection and the Collapse of Data Provenance">
+<meta property="og:type" content="article">
+<meta property="og:description" content="Church of Malware whitepaper: telemetry provenance, trust boundaries, and unauthenticated ingestion — assessment model and claim boundaries.">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<nav class="site-nav"><div class="container">
+  <a href="index.html">Home</a>
+  <a href="whitepaper.html">Whitepaper</a>
+  <a href="master-report.html">Master Report</a>
+  <a href="legal-annex.html">Legal Annex</a>
+  <a href="source/whitepaper.md" class="src">source</a>
+</div></nav>
+
+<main class="container article">
+<div class="doc-title">Unauthenticated Telemetry Injection and the Collapse of Data Provenance</div>
+<h2>Security Implications When Untrusted Telemetry Is Stored Alongside Trusted Production Data</h2>
+<p><strong>Author:</strong> ek0ms savi0r, based on technical reports, vendor correspondence, proof-of-concept results, and research conducted by ek0ms savi0r, k3nundrum &amp; TJnull / Church of Malware<br />
+<strong>Date:</strong> June-September 2026</p>
+<hr />
+<h2>Executive Summary</h2>
+<p>Modern software systems produce enormous quantities of telemetry. Applications, browsers, operating systems, mobile devices, cloud services, vehicles, security platforms, and web applications continuously submit events describing what users and systems appear to be doing.</p>
+<p>That data is frequently treated as operational truth.</p>
+<p>Telemetry feeds dashboards, application-performance monitoring, usage analytics, alerting systems, fraud systems, business intelligence, incident investigations, attribution pipelines, and increasingly automated decision-making systems.</p>
+<p>The research reviewed for this paper demonstrates a recurring architectural characteristic across several major telemetry ecosystems: externally controlled clients can submit synthetic telemetry to production ingestion endpoints without authenticating the producer as an authoritative source.</p>
+<p>The most important security question is not simply whether an endpoint accepts unauthenticated data.</p>
+<p>The critical question is:</p>
+<blockquote>
+<p><strong>What happens to that data after acceptance?</strong></p>
+</blockquote>
+<p>If externally supplied telemetry is discarded, quarantined, or permanently marked by the server as untrusted and that provenance survives every downstream transformation, the security implications may be limited.</p>
+<p>If, however, attacker-supplied telemetry is stored, aggregated, queried, exported, or otherwise processed alongside genuine production telemetry without durable and authoritative provenance, the result is a fundamental data-integrity problem.</p>
+<p>The system can no longer reliably answer a deceptively simple question:</p>
+<p><strong>Which records actually came from the systems they claim to represent?</strong></p>
+<p>That distinction matters enormously in an era where telemetry is no longer merely diagnostic information. Telemetry increasingly serves as evidence.</p>
+<p>My conclusion from the research reviewed here is that unauthenticated telemetry ingestion should be analyzed as a <strong>data-provenance and trust-boundary problem</strong>, rather than dismissed merely because an ingestion endpoint was intentionally designed to receive data from untrusted client environments.</p>
+<p>The mere existence of unauthenticated ingestion does not establish a vulnerability.</p>
+<p>But storing indistinguishable attacker-generated and authentic production records in the same trust domain can.</p>
+<hr />
+<h1>1. Introduction</h1>
+<p>Telemetry systems historically occupied a relatively simple role.</p>
+<p>Applications emitted logs.</p>
+<p>Developers looked at them.</p>
+<p>If someone inserted junk into a diagnostic dataset, the consequences might have been little more than confusing charts.</p>
+<p>That model no longer reflects modern infrastructure.</p>
+<p>Telemetry now drives:</p>
+<ul>
+<li>observability;</li>
+<li>security monitoring;</li>
+<li>application performance analytics;</li>
+<li>incident response;</li>
+<li>attribution;</li>
+<li>user and session reconstruction;</li>
+<li>fraud detection;</li>
+<li>product analytics;</li>
+<li>alerting;</li>
+<li>capacity planning;</li>
+<li>automated remediation;</li>
+<li>operational decision making;</li>
+<li>data warehouses;</li>
+<li>artificial-intelligence and machine-learning pipelines.</li>
+</ul>
+<p>The value of telemetry has therefore changed.</p>
+<p>So has the importance of knowing where it came from.</p>
+<p>During research into multiple telemetry platforms, Church of Malware identified several production ingestion interfaces that accepted synthetic externally generated events.</p>
+<p>Examples investigated included Microsoft Application Insights, Microsoft's OneCollector/1DS ecosystem, Google's Android Check-In infrastructure, TikTok analytics ingestion, and Flock Safety's use of third-party analytics infrastructure.</p>
+<p>The implementations differed.</p>
+<p>The unanswered architectural question repeatedly remained the same:</p>
+<p><strong>Does the backend maintain an immutable distinction between externally unverified telemetry and telemetry originating from an authoritative producer?</strong></p>
+<p>This paper examines why that distinction matters.</p>
+<hr />
+<h1>2. The Fundamental Security Property: Provenance</h1>
+<p>Data provenance describes the origin and history of information.</p>
+<p>For telemetry, meaningful provenance should answer questions such as:</p>
+<ul>
+<li>Which producer generated this record?</li>
+<li>Was that producer authenticated?</li>
+<li>Was the record submitted by a first-party application, browser client, external script, or another source?</li>
+<li>Has the record been modified?</li>
+<li>Which transformations have been applied?</li>
+<li>Has its trust classification changed?</li>
+<li>Can the originating client alter that classification?</li>
+<li>Does the classification survive aggregation, export, indexing, and downstream processing?</li>
+</ul>
+<p>A telemetry system does not necessarily need to reject untrusted data.</p>
+<p>But it must understand that it is untrusted.</p>
+<p>That distinction is fundamental.</p>
+<p>Consider two records:</p>
+<pre><code class="language-text">Event A:
+user_id = 483920
+operation = checkout
+status = failed
+source = authenticated-production-client
+</code></pre>
+<p>and</p>
+<pre><code class="language-text">Event B:
+user_id = 483920
+operation = checkout
+status = failed
+source = unknown-external-producer
+</code></pre>
+<p>These records may contain identical application data.</p>
+<p>They are not equivalent evidence.</p>
+<p>If the provenance field disappears during processing, the system has transformed two fundamentally different observations into apparently equivalent facts.</p>
+<p>That is where telemetry injection becomes significantly more interesting from a security perspective.</p>
+<hr />
+<h1>3. Ingestion Is Not the Same as Impact</h1>
+<p>A major lesson from this research is the necessity of separating what external testing can prove from what only the telemetry operator can determine.</p>
+<p>For example, several tested services returned responses demonstrating that submitted telemetry was accepted by the ingestion boundary.</p>
+<p>Microsoft Application Insights returned responses of the form:</p>
+<pre><code class="language-json">{
+  &quot;itemsReceived&quot;: 1,
+  &quot;itemsAccepted&quot;: 1,
+  &quot;appId&quot;: &quot;b784cd90-1562-4630-bb8f-af8af0d05305&quot;,
+  &quot;errors&quot;: []
+}
+</code></pre>
+<p>Google's Android Check-In service returned:</p>
+<pre><code class="language-json">{
+  &quot;stats_ok&quot;: true,
+  &quot;time_msec&quot;: 1784330187681
+}
+</code></pre>
+<p>Those responses are meaningful.</p>
+<p>They demonstrate that the remote service received and parsed externally supplied telemetry.</p>
+<p>They do <strong>not</strong>, by themselves, prove:</p>
+<ul>
+<li>permanent storage;</li>
+<li>dashboard visibility;</li>
+<li>trusted attribution;</li>
+<li>alert generation;</li>
+<li>business-metric manipulation;</li>
+<li>query visibility;</li>
+<li>machine-learning poisoning;</li>
+<li>SOC impact;</li>
+<li>billing impact;</li>
+<li>execution of submitted content;</li>
+<li>cross-tenant effects.</li>
+</ul>
+<p>This distinction is essential.</p>
+<p>A responsible technical analysis should therefore divide the problem into two layers.</p>
+<h3>Layer One: Externally Verifiable</h3>
+<p>The researcher can determine whether:</p>
+<ul>
+<li>authentication is required;</li>
+<li>arbitrary clients can reach the collector;</li>
+<li>synthetic events are accepted;</li>
+<li>selected fields are caller controlled;</li>
+<li>valid production destination identifiers are recognized;</li>
+<li>basic volume is tolerated;</li>
+<li>the server acknowledges successful ingestion.</li>
+</ul>
+<h3>Layer Two: Operator-Verifiable</h3>
+<p>Only the telemetry provider or customer can normally determine:</p>
+<ul>
+<li>final storage disposition;</li>
+<li>trust classification;</li>
+<li>retention;</li>
+<li>filtering;</li>
+<li>aggregation;</li>
+<li>dashboard appearance;</li>
+<li>alert participation;</li>
+<li>export behavior;</li>
+<li>downstream analytics use;</li>
+<li>server-side provenance;</li>
+<li>whether untrusted records remain distinguishable from authentic ones.</li>
+</ul>
+<p>This difference created a recurring difficulty during coordinated disclosure.</p>
+<p>Researchers can prove entry into the front door.</p>
+<p>Vendors control the rooms behind it.</p>
+<hr />
+<h1>4. The Threat Model</h1>
+<p>The relevant attacker does not necessarily need privileged access.</p>
+<p>The attacker may simply possess information already delivered to legitimate client software.</p>
+<p>Many telemetry platforms intentionally expose destination identifiers in browser applications or client software.</p>
+<p>For example, an Application Insights instrumentation key should not automatically be described as a secret credential.</p>
+<p>It identifies a telemetry destination.</p>
+<p>That design decision is not itself a security flaw.</p>
+<p>The problem arises if possession of that public identifier allows an arbitrary external producer to generate telemetry that later becomes operationally indistinguishable from authentic application telemetry.</p>
+<p>The attacker therefore does not need to steal the identity of an authorized administrator.</p>
+<p>The attacker attempts to impersonate <strong>the data-producing environment</strong>.</p>
+<p>This distinction matters.</p>
+<p>Traditional authentication asks:</p>
+<blockquote>
+<p>Who is allowed to access the application?</p>
+</blockquote>
+<p>Telemetry provenance asks:</p>
+<blockquote>
+<p>Who is allowed to create evidence describing what happened inside the application?</p>
+</blockquote>
+<p>Those are different trust boundaries.</p>
+<hr />
+<h1>5. Evidence Observed Across Multiple Ecosystems</h1>
+<h2>Microsoft Application Insights</h2>
+<p>Testing demonstrated externally submitted synthetic envelopes being accepted by Application Insights ingestion endpoints.</p>
+<p>In one third-party deployment associated with CarMax, synthetic records containing caller-controlled values were accepted for fields representing:</p>
+<ul>
+<li>event names;</li>
+<li>user identifiers;</li>
+<li>session identifiers;</li>
+<li>operation names;</li>
+<li>operation IDs;</li>
+<li>arbitrary custom properties;</li>
+<li>dependency record names;</li>
+<li>dependency targets;</li>
+<li>result codes;</li>
+<li>success states.</li>
+</ul>
+<p>A synthetic dependency record was accepted as telemetry.</p>
+<p>That does not mean the dependency was actually executed.</p>
+<p>It means a caller was able to create a record claiming that such a dependency existed.</p>
+<p>That distinction demonstrates precisely why provenance matters.</p>
+<p>A monitoring system must distinguish between:</p>
+<pre><code class="language-text">&quot;The application observed dependency X failing.&quot;
+</code></pre>
+<p>and:</p>
+<pre><code class="language-text">&quot;An unknown external party submitted a record claiming dependency X failed.&quot;
+</code></pre>
+<p>If those become equivalent downstream, monitoring integrity is weakened.</p>
+<hr />
+<h2>Microsoft OneCollector / 1DS</h2>
+<p>Research into Microsoft's OneCollector infrastructure identified multiple collection endpoints accepting externally supplied events.</p>
+<p>The broader significance was not merely the number of endpoints.</p>
+<p>OneCollector is infrastructure used across a large ecosystem of Microsoft products.</p>
+<p>Microsoft's position was that backend validation, filtering, and trust-handling mechanisms protect downstream use.</p>
+<p>That response highlights the central issue of this paper.</p>
+<p>Those controls are exactly what matter.</p>
+<p>But architectural assertions are weaker evidence than an end-to-end trace demonstrating how a specific synthetic canary was treated.</p>
+<p>The unresolved question becomes:</p>
+<blockquote>
+<p>Was the submitted record actually traced through the production pipeline and shown to retain an immutable untrusted classification?</p>
+</blockquote>
+<p>Without that information, external research can confirm ingestion but cannot independently verify downstream provenance.</p>
+<hr />
+<h2>Google Android Check-In</h2>
+<p>Google's Android Check-In infrastructure accepted synthetic check-in data without requiring an already established device identity.</p>
+<p>Google explained that unauthenticated bootstrap check-ins are expected because newly initialized devices must communicate before every identity relationship exists.</p>
+<p>Architecturally, that explanation is reasonable.</p>
+<p>It also reinforces why authentication alone is not the complete question.</p>
+<p>A telemetry system may legitimately need to accept an unauthenticated record.</p>
+<p>The security property therefore shifts from:</p>
+<pre><code class="language-text">Reject unauthenticated data.
+</code></pre>
+<p>to:</p>
+<pre><code class="language-text">Never allow unauthenticated data to silently acquire the trust characteristics of authenticated data.
+</code></pre>
+<p>Google later stated that server-controlled mechanisms classify and segregate unauthenticated inputs.</p>
+<p>If those controls operate as described and persist through downstream processing, they represent the kind of provenance architecture necessary for safely handling untrusted telemetry.</p>
+<p>The difficulty for an external researcher is independently verifying that claim.</p>
+<hr />
+<h2>TikTok Analytics</h2>
+<p>TikTok's analytics infrastructure similarly demonstrated the distinction between ingestion design and downstream trust.</p>
+<p>A duplicate HackerOne report confirmed that the endpoint behavior had previously been reported.</p>
+<p>The prior issue had been classified as non-security-sensitive because analytics and lead information were considered unreliable or non-mission-critical within that threat model.</p>
+<p>That position may be defensible for certain analytics environments.</p>
+<p>But it raises a larger architectural question:</p>
+<p>If a company explicitly assumes analytics records may be unreliable, where is that assumption enforced?</p>
+<p>Is unreliability:</p>
+<ul>
+<li>merely documented;</li>
+<li>understood by engineers;</li>
+<li>encoded as metadata;</li>
+<li>or cryptographically/server-authoritatively preserved with each record?</li>
+</ul>
+<p>The difference matters.</p>
+<p>A human understanding that "analytics can be noisy" is not equivalent to machine-readable provenance.</p>
+<hr />
+<h2>Flock Safety and Segment</h2>
+<p>Research involving a Flock Safety deployment demonstrated another common architecture: a first-party organization forwarding telemetry through a third-party analytics platform.</p>
+<p>That architecture expands the provenance problem.</p>
+<p>The lifecycle may become:</p>
+<pre><code class="language-text">Client
+  ↓
+Third-party collector
+  ↓
+Transformation
+  ↓
+First-party analytics
+  ↓
+Warehouse
+  ↓
+Dashboard / alert / model
+</code></pre>
+<p>Trust metadata must survive every boundary.</p>
+<p>If an ingestion provider knows that an event came from an unauthenticated producer but that classification disappears when the event is exported downstream, the security control has effectively failed.</p>
+<p>Provenance must therefore be durable, not temporary.</p>
+<hr />
+<h1>6. What Happens If Fake and Real Telemetry Are Stored Together?</h1>
+<p>This is the most important question.</p>
+<p>Suppose a production telemetry system stores both authentic records and externally generated synthetic records.</p>
+<p>There are two fundamentally different architectures.</p>
+<h3>Architecture A: Provenance Preserved</h3>
+<pre><code class="language-text">REAL EVENT
+producer_trust = verified
+
+FAKE EVENT
+producer_trust = external_unverified
+</code></pre>
+<p>Both records may exist in the same physical datastore.</p>
+<p>That may be acceptable.</p>
+<p>Systems can query, filter, quarantine, or weight the records differently.</p>
+<h3>Architecture B: Provenance Lost</h3>
+<pre><code class="language-text">REAL EVENT
+user_id = 123
+operation = login
+
+FAKE EVENT
+user_id = 123
+operation = login
+</code></pre>
+<p>There is no authoritative property distinguishing the two.</p>
+<p>This is significantly more dangerous.</p>
+<p>The following consequences become possible.</p>
+<hr />
+<h2>6.1 Loss of Evidentiary Integrity</h2>
+<p>Telemetry frequently becomes forensic evidence.</p>
+<p>Incident responders may ask:</p>
+<ul>
+<li>When did the user log in?</li>
+<li>What operation failed?</li>
+<li>Which dependency was contacted?</li>
+<li>Which session generated the request?</li>
+<li>Which software version produced the event?</li>
+<li>What occurred immediately before the outage?</li>
+</ul>
+<p>If arbitrary external actors can manufacture records indistinguishable from genuine records, telemetry becomes unreliable evidence.</p>
+<p>This does not necessarily make the entire datastore useless.</p>
+<p>But every affected record becomes epistemically weaker.</p>
+<p>The organization no longer merely has a logging problem.</p>
+<p>It has an evidence-authenticity problem.</p>
+<hr />
+<h1>7. False Operational Narratives</h1>
+<p>Modern telemetry systems reconstruct narratives.</p>
+<p>A dashboard might appear to show:</p>
+<pre><code class="language-text">User 432 logged in
+↓
+Started checkout
+↓
+Called payment dependency
+↓
+Dependency failed
+↓
+Session abandoned
+</code></pre>
+<p>An injected record can fabricate pieces of that narrative.</p>
+<p>With enough control over event fields, synthetic telemetry could theoretically create observations claiming:</p>
+<ul>
+<li>users performed actions they did not perform;</li>
+<li>operations failed when they did not;</li>
+<li>dependencies existed when they did not;</li>
+<li>sessions behaved differently from reality;</li>
+<li>application versions generated events they never generated.</li>
+</ul>
+<p>Again, whether a specific system consumes such injected data is an empirical downstream question.</p>
+<p>But if fake records and authentic records lose provenance, the dataset supports narratives that are not necessarily grounded in observed reality.</p>
+<hr />
+<h1>8. Detection and Monitoring Consequences</h1>
+<p>Security monitoring depends heavily on assumptions about data trust.</p>
+<p>A detection might effectively mean:</p>
+<pre><code class="language-text">IF event.type = authentication_failure
+AND count &gt; threshold
+THEN alert
+</code></pre>
+<p>If an external producer can manufacture events contributing to that query, false positives become possible.</p>
+<p>The opposite risk also exists.</p>
+<p>Attackers do not always need to fabricate obvious malicious telemetry.</p>
+<p>They can manufacture noise.</p>
+<p>Consider a real malicious event surrounded by thousands of misleading records.</p>
+<p>The objective may not be to erase the authentic signal.</p>
+<p>It may simply be to reduce analyst confidence.</p>
+<p>The attacker attacks the <strong>signal-to-noise ratio</strong>.</p>
+<p>This is particularly relevant to security operations because analyst trust is itself a limited resource.</p>
+<p>If a telemetry source repeatedly produces unexplainable false events, defenders eventually downgrade its reliability.</p>
+<p>That creates an indirect attack against detection capability.</p>
+<hr />
+<h1>9. Attribution Failure</h1>
+<p>Telemetry frequently contains apparent identities:</p>
+<pre><code class="language-text">user_id
+session_id
+device_id
+operation_id
+account_id
+tenant_id
+application_version
+hostname
+</code></pre>
+<p>But the existence of an identity field does not mean the producer was authorized to assert that identity.</p>
+<p>This is one of the most important distinctions in telemetry security.</p>
+<p>A field saying:</p>
+<pre><code class="language-text">user_id = Alice
+</code></pre>
+<p>does not mean Alice generated the event.</p>
+<p>It means the event <strong>claims</strong> Alice generated it.</p>
+<p>Without authenticated provenance, attribution fields should be treated as assertions made by the producer rather than authoritative facts.</p>
+<p>Systems that fail to preserve that distinction risk confusing:</p>
+<pre><code class="language-text">claimed identity
+</code></pre>
+<p>with:</p>
+<pre><code class="language-text">verified identity
+</code></pre>
+<p>That is a classic trust-boundary mistake.</p>
+<hr />
+<h1>10. Business Analytics Integrity</h1>
+<p>Telemetry often feeds more than security systems.</p>
+<p>Organizations use it to answer questions such as:</p>
+<ul>
+<li>Which features are most popular?</li>
+<li>Which pages fail?</li>
+<li>Which regions experience errors?</li>
+<li>Which application version performs poorly?</li>
+<li>Which campaign generated conversions?</li>
+<li>Which customer journey failed?</li>
+<li>Which product requires engineering attention?</li>
+</ul>
+<p>If unauthenticated records participate in these calculations without provenance controls, metrics can become polluted.</p>
+<p>An attacker may not need to compromise a server.</p>
+<p>They may instead compromise what the organization believes about the server.</p>
+<p>That can produce incorrect operational decisions.</p>
+<p>Examples could include:</p>
+<ul>
+<li>engineering teams investigating nonexistent failures;</li>
+<li>product teams prioritizing fabricated usage patterns;</li>
+<li>analysts calculating incorrect conversion rates;</li>
+<li>reliability teams responding to synthetic error spikes.</li>
+</ul>
+<p>The exact feasibility depends on the downstream pipeline.</p>
+<p>But the architectural risk is real whenever untrusted inputs become indistinguishable from trusted observations.</p>
+<hr />
+<h1>11. Artificial Intelligence Raises the Stakes</h1>
+<p>The growing use of telemetry in machine-learning and AI systems makes provenance significantly more important.</p>
+<p>Not every telemetry dataset becomes training data.</p>
+<p>Therefore unauthenticated ingestion alone does <strong>not</strong> prove machine-learning poisoning.</p>
+<p>That claim requires evidence.</p>
+<p>However, the general risk is straightforward.</p>
+<p>Machine learning assumes that training and evaluation datasets provide meaningful observations of the environment being modeled.</p>
+<p>If a dataset contains adversarially generated observations that cannot be distinguished from genuine observations, several problems emerge:</p>
+<ul>
+<li>corrupted training distributions;</li>
+<li>distorted anomaly baselines;</li>
+<li>incorrect labels;</li>
+<li>fabricated behavioral patterns;</li>
+<li>model drift;</li>
+<li>reduced confidence in training data;</li>
+<li>difficulty reconstructing dataset lineage.</li>
+</ul>
+<p>This becomes especially dangerous when telemetry is repeatedly transformed.</p>
+<p>A raw event may become:</p>
+<pre><code class="language-text">Raw telemetry
+→ normalized event
+→ daily aggregate
+→ warehouse table
+→ feature vector
+→ model-training dataset
+</code></pre>
+<p>At the final stage, the original producer may no longer even be represented.</p>
+<p>This is why provenance must survive transformation.</p>
+<p>It is not enough to know that the original collector once knew an event was untrusted.</p>
+<p>That fact must remain attached to the information derived from it.</p>
+<hr />
+<h1>12. The Aggregation Problem</h1>
+<p>Aggregation is one of the easiest ways to accidentally destroy provenance.</p>
+<p>Imagine:</p>
+<pre><code class="language-text">99 genuine failures
+1 attacker-generated failure
+</code></pre>
+<p>The system produces:</p>
+<pre><code class="language-text">failure_count = 100
+</code></pre>
+<p>Where is the provenance now?</p>
+<p>Even if the attacker-generated record originally carried an untrusted designation, the aggregate may not.</p>
+<p>A secure aggregation system may need to calculate something closer to:</p>
+<pre><code class="language-text">verified_failure_count = 99
+unverified_failure_count = 1
+</code></pre>
+<p>or ensure that unverified records never contribute to security-sensitive aggregates.</p>
+<p>This demonstrates an important point:</p>
+<p><strong>Provenance is not merely a property of raw records.</strong></p>
+<p>It must become a property of derived information.</p>
+<hr />
+<h1>13. Trust Must Be Server Controlled</h1>
+<p>A client cannot authoritatively declare itself trusted.</p>
+<p>During research, synthetic records sometimes included explicit properties indicating that they were externally generated research data.</p>
+<p>Those labels were useful for canary tracing.</p>
+<p>They were not security controls.</p>
+<p>An attacker controls client-submitted fields.</p>
+<p>Therefore something like:</p>
+<pre><code class="language-json">{
+  &quot;producer_claim&quot;: &quot;UNAUTHENTICATED_EXTERNAL_RESEARCHER&quot;
+}
+</code></pre>
+<p>does not prove that the server safely classified the record.</p>
+<p>The security-relevant property must originate from the receiving infrastructure itself.</p>
+<p>For example:</p>
+<pre><code class="language-text">producer_verification = unauthenticated
+</code></pre>
+<p>must be generated or cryptographically validated by the service.</p>
+<p>The external sender must not be able to:</p>
+<ul>
+<li>remove it;</li>
+<li>change it;</li>
+<li>imitate a trusted value;</li>
+<li>suppress it;</li>
+<li>cause downstream systems to ignore it.</li>
+</ul>
+<p>This principle is critical.</p>
+<p><strong>Trust labels controlled by the untrusted party are not trust labels.</strong></p>
+<hr />
+<h1>14. Durable Provenance</h1>
+<p>A strong telemetry security architecture should maintain provenance through the entire lifecycle:</p>
+<pre><code class="language-text">Producer
+↓
+Ingress
+↓
+Queue
+↓
+Normalization
+↓
+Storage
+↓
+Transformation
+↓
+Aggregation
+↓
+Query
+↓
+Export
+↓
+Security analytics
+↓
+Business analytics
+↓
+Machine-learning pipelines
+</code></pre>
+<p>At every stage, systems should know whether the underlying information originated from:</p>
+<pre><code class="language-text">verified producer
+unverified producer
+mixed provenance
+unknown provenance
+</code></pre>
+<p>If provenance disappears at any stage, downstream systems may unknowingly increase the trust assigned to the data.</p>
+<p>That is effectively a form of privilege escalation for information.</p>
+<p>The data enters as untrusted.</p>
+<p>It emerges as trusted.</p>
+<hr />
+<h1>15. Telemetry Has a Trust Boundary</h1>
+<p>Security engineering traditionally treats request inputs as untrusted.</p>
+<p>Telemetry deserves the same treatment.</p>
+<p>Consider this common mental model:</p>
+<pre><code class="language-text">Internet
+   ↓
+Application API
+   ↓
+Authentication
+   ↓
+Authorization
+</code></pre>
+<p>Organizations carefully defend that boundary.</p>
+<p>But another boundary often exists:</p>
+<pre><code class="language-text">Internet
+   ↓
+Telemetry collector
+   ↓
+Data warehouse
+   ↓
+Detection system
+   ↓
+Human / automated decisions
+</code></pre>
+<p>The telemetry collector may intentionally permit unauthenticated access.</p>
+<p>That does not eliminate the trust boundary.</p>
+<p>It merely moves the boundary deeper into the system.</p>
+<p>The architecture must therefore enforce trust somewhere else.</p>
+<p>If it does not, an externally writable telemetry collector becomes an externally writable source of organizational evidence.</p>
+<hr />
+<h1>16. Availability and Economic Effects</h1>
+<p>Unauthenticated ingestion can also create resource-consumption concerns.</p>
+<p>Potential effects include:</p>
+<ul>
+<li>ingestion volume;</li>
+<li>retention volume;</li>
+<li>processing cost;</li>
+<li>indexing;</li>
+<li>export bandwidth;</li>
+<li>query complexity;</li>
+<li>dashboard noise;</li>
+<li>analyst time.</li>
+</ul>
+<p>However, researchers should avoid automatically describing small-scale acceptance tests as proof of denial-of-service capability or absence of rate limiting.</p>
+<p>For example:</p>
+<pre><code class="language-text">10/10 requests accepted
+</code></pre>
+<p>means only that throttling was not observed during that limited sample.</p>
+<p>It does not prove:</p>
+<pre><code class="language-text">unlimited ingestion
+</code></pre>
+<p>or:</p>
+<pre><code class="language-text">no rate limiting exists.
+</code></pre>
+<p>This distinction illustrates a broader principle followed throughout this research:</p>
+<p><strong>state what the evidence proves, then clearly identify what requires vendor-side validation.</strong></p>
+<hr />
+<h1>17. Why "The Telemetry Is Already Untrusted" Is Not a Complete Answer</h1>
+<p>A common response to this issue is:</p>
+<blockquote>
+<p>Browser telemetry is inherently untrusted.</p>
+</blockquote>
+<p>That statement can be correct.</p>
+<p>But it does not resolve the architectural problem.</p>
+<p>If telemetry is inherently untrusted, downstream systems must know that.</p>
+<p>The correct question is therefore not:</p>
+<pre><code class="language-text">Does engineering understand that browsers can lie?
+</code></pre>
+<p>It is:</p>
+<pre><code class="language-text">Can downstream systems technically distinguish unverified browser telemetry from telemetry carrying stronger producer guarantees?
+</code></pre>
+<p>Human awareness is not a security boundary.</p>
+<p>Server-enforced metadata is.</p>
+<hr />
+<h1>18. Why "The Key Is Public" Is Also Not a Complete Answer</h1>
+<p>Another common response is:</p>
+<blockquote>
+<p>The instrumentation key is not a secret.</p>
+</blockquote>
+<p>Correct.</p>
+<p>For systems such as browser-based telemetry, destination identifiers often cannot realistically remain secret.</p>
+<p>But secrecy of the destination identifier is not the central issue.</p>
+<p>The real question is:</p>
+<blockquote>
+<p>Does knowing the public destination identifier grant the ability to create records that downstream systems treat as if they originated from the legitimate application?</p>
+</blockquote>
+<p>The solution is therefore usually not:</p>
+<pre><code class="language-text">hide the key better
+</code></pre>
+<p>but:</p>
+<pre><code class="language-text">authenticate producers where appropriate
+and/or
+preserve authoritative untrusted provenance where authentication is impossible
+</code></pre>
+<hr />
+<h1>19. Recommended Security Model</h1>
+<p>A resilient telemetry architecture should implement several complementary controls.</p>
+<h3>Producer Authentication</h3>
+<p>Where feasible, authenticate high-trust telemetry producers.</p>
+<p>Backend services, administrative systems, security sensors, and other authoritative systems should generally have stronger producer authentication than arbitrary browser clients.</p>
+<h3>Server-Controlled Provenance</h3>
+<p>Every accepted event should receive an immutable provenance classification.</p>
+<p>For example:</p>
+<pre><code class="language-text">producer_class = browser_unverified
+producer_class = authenticated_backend
+producer_class = first_party_device_attested
+producer_class = third_party_integration
+</code></pre>
+<h3>Provenance-Aware Queries</h3>
+<p>Security-sensitive queries should explicitly define which producer classes are permitted to contribute.</p>
+<h3>Provenance-Preserving Aggregation</h3>
+<p>Derived metrics must retain information about the trust level of their inputs.</p>
+<h3>Separation of Trust Domains</h3>
+<p>Where practical, high-trust telemetry and inherently untrusted analytics data should use separate resources or pipelines.</p>
+<h3>Canary Traceability</h3>
+<p>Operators should be capable of tracing a synthetic event from ingress through final disposition.</p>
+<p>This is extremely useful for both security testing and incident investigation.</p>
+<h3>Rate and Abuse Controls</h3>
+<p>Even intentionally public ingestion endpoints should monitor abnormal producer behavior and resource consumption.</p>
+<h3>Documentation</h3>
+<p>Customers should understand whether client telemetry is authenticated, what guarantees exist, and which security-sensitive decisions should or should not rely on it.</p>
+<hr />
+<h1>20. A Better Vulnerability-Assessment Model</h1>
+<p>I believe telemetry-injection reports are often evaluated using an incomplete binary model:</p>
+<pre><code class="language-text">Is authentication required?
+YES / NO
+</code></pre>
+<p>A better model asks four questions.</p>
+<h3>1. Can an external producer submit telemetry?</h3>
+<p>This establishes accessibility.</p>
+<h3>2. What fields can that producer control?</h3>
+<p>This establishes semantic influence.</p>
+<h3>3. Does the server authoritatively label the producer's trust level?</h3>
+<p>This establishes provenance.</p>
+<h3>4. Does that provenance survive every downstream use?</h3>
+<p>This establishes whether the architecture actually preserves the trust boundary.</p>
+<p>This four-stage model produces much more meaningful security analysis than simply categorizing every unauthenticated telemetry endpoint as either "critical" or "working as designed."</p>
+<p>The truth usually lies in the downstream architecture.</p>
+<hr />
+<h1>21. Vendor Validation Should Be Trace Based</h1>
+<p>When a researcher provides a unique synthetic canary, the strongest vendor response is not:</p>
+<blockquote>
+<p>We have protections.</p>
+</blockquote>
+<p>It is:</p>
+<blockquote>
+<p>We located canary X. It entered system A, was assigned server-controlled classification B, was rejected from pipeline C, retained in store D for N hours, never contributed to aggregate E, and was not exported to system F.</p>
+</blockquote>
+<p>That is evidence.</p>
+<p>It enables both the researcher and vendor to reach a technically defensible conclusion.</p>
+<p>Canary tracing should become a standard part of telemetry security triage.</p>
+<p>It answers the question external researchers frequently cannot answer themselves:</p>
+<p><strong>Where did the data actually go?</strong></p>
+<hr />
+<h1>22. Severity Should Follow Downstream Trust</h1>
+<p>Not every instance of unauthenticated telemetry ingestion should receive the same severity.</p>
+<p>Severity should depend heavily on downstream behavior.</p>
+<p>A conceptual model could look like this:</p>
+<table>
+<thead>
+<tr>
+<th>Architecture</th>
+<th>Likely Security Concern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unauthenticated ingestion, immediately discarded</td>
+<td>Minimal</td>
+</tr>
+<tr>
+<td>Unauthenticated ingestion, quarantined and clearly marked</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>Stored but permanently marked untrusted</td>
+<td>Context dependent</td>
+</tr>
+<tr>
+<td>Aggregated with trusted data but provenance preserved</td>
+<td>Moderate/context dependent</td>
+</tr>
+<tr>
+<td>Indistinguishable from trusted telemetry</td>
+<td>Significant integrity concern</td>
+</tr>
+<tr>
+<td>Drives security automation or authoritative decisions</td>
+<td>Potentially high</td>
+</tr>
+<tr>
+<td>Influences safety-critical or security-critical systems</td>
+<td>Potentially severe</td>
+</tr>
+</tbody>
+</table>
+<p>The critical variable is not simply whether fake telemetry can enter.</p>
+<p>It is whether fake telemetry can acquire the authority of real telemetry.</p>
+<hr />
+<h1>23. Broader Implications for Cybersecurity</h1>
+<p>Cybersecurity traditionally focuses heavily on confidentiality and system compromise.</p>
+<p>Telemetry injection emphasizes another security property:</p>
+<p><strong>epistemic integrity.</strong></p>
+<p>Can the organization trust what its systems tell it happened?</p>
+<p>That question becomes increasingly important as infrastructure becomes more autonomous.</p>
+<p>If machines make decisions based on telemetry, then controlling the telemetry can become a way of indirectly influencing the machine.</p>
+<p>An attacker may not need to compromise the decision engine.</p>
+<p>They may only need to contaminate the evidence presented to it.</p>
+<p>This concept extends well beyond the platforms examined during this research.</p>
+<p>It applies to:</p>
+<ul>
+<li>cloud observability;</li>
+<li>endpoint telemetry;</li>
+<li>IoT systems;</li>
+<li>industrial monitoring;</li>
+<li>autonomous systems;</li>
+<li>mobile ecosystems;</li>
+<li>advertising analytics;</li>
+<li>fraud systems;</li>
+<li>security telemetry;</li>
+<li>artificial-intelligence pipelines.</li>
+</ul>
+<p>The security industry has spent decades learning to distrust user input.</p>
+<p>It must now learn to distrust <strong>user-generated evidence</strong>.</p>
+<hr />
+<h1>24. Researcher Responsibility</h1>
+<p>Telemetry research also requires restraint.</p>
+<p>A successful HTTP response can be exciting evidence.</p>
+<p>It is easy to overinterpret.</p>
+<p>Responsible reporting should clearly distinguish between:</p>
+<pre><code class="language-text">confirmed ingestion
+</code></pre>
+<p>and:</p>
+<pre><code class="language-text">confirmed downstream impact.
+</code></pre>
+<p>Researchers should prefer unique harmless canaries over destructive payloads.</p>
+<p>Once ingestion is demonstrated, additional production testing frequently provides diminishing value.</p>
+<p>The vendor is better positioned to trace the submitted canary internally.</p>
+<p>This reduces operational risk while producing better technical evidence.</p>
+<p>The strongest report is not the one containing the most dramatic claims.</p>
+<p>It is the one in which every claim can survive adversarial scrutiny.</p>
+<hr />
+<h1>25. Final Assessment</h1>
+<p>The research reviewed for this paper does not establish that every unauthenticated telemetry collector is insecure.</p>
+<p>It establishes something more useful:</p>
+<p><strong>Unauthenticated telemetry ingestion creates a trust problem that must be resolved somewhere in the architecture.</strong></p>
+<p>There are only a few possible outcomes.</p>
+<p>The data can be rejected.</p>
+<p>It can be accepted but permanently identified as untrusted.</p>
+<p>It can be segregated.</p>
+<p>It can be prevented from influencing security-sensitive systems.</p>
+<p>Or its origin can be forgotten.</p>
+<p>That final possibility is the dangerous one.</p>
+<p>If attacker-generated telemetry is stored alongside authentic production telemetry and no durable server-controlled provenance survives, then the organization loses the ability to reliably distinguish observation from assertion.</p>
+<p>At that point, the issue is no longer merely that someone can "send fake analytics."</p>
+<p>The attacker has acquired the ability to manufacture evidence.</p>
+<p>And modern computing systems make enormous numbers of decisions from evidence.</p>
+<p>That is why telemetry provenance deserves to become a first-class security property.</p>
+<hr />
+<h2>Conclusion</h2>
+<p>The central lesson from this research can be summarized in one sentence:</p>
+<blockquote>
+<p><strong>A telemetry pipeline is only as trustworthy as its ability to preserve the difference between data it observed and data someone merely claimed was true.</strong></p>
+</blockquote>
+<p>Unauthenticated ingestion may sometimes be necessary.</p>
+<p>Untraceable provenance is not.</p>
+<p>As telemetry increasingly feeds security operations, automated decision systems, artificial intelligence, business analytics, and critical infrastructure, the industry must stop treating telemetry as passive exhaust.</p>
+<p>Telemetry is evidence.</p>
+<p>Evidence requires provenance.</p>
+<p>And when fake evidence becomes indistinguishable from real evidence, the problem is no longer simply telemetry injection.</p>
+<p>It is a failure of trust.</p>
+</main>
+<footer class="site-footer"><div class="container">
+<p>&copy; 2026 Church of Malware &middot; <a href="https://churchofmalware.org">churchofmalware.org</a> &middot; <a href="index.html">triage home</a></p>
+<p class="note">Public-interest disclosure. No exploit code; no instructions enabling harm. TLP:CLEAR.</p>
+</div></footer>
+</body>
+</html>

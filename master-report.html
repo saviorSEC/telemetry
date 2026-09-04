@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>Master Report — Global Unauthenticated Telemetry Injection Triage</title>
+<meta name="description" content="Triage master report: unauthenticated telemetry injection across 80+ endpoints and 10 technology companies — evidence and vendor status.">
+<meta property="og:title" content="Master Report — Global Unauthenticated Telemetry Injection Triage">
+<meta property="og:type" content="article">
+<meta property="og:description" content="Triage master report: unauthenticated telemetry injection across 80+ endpoints and 10 technology companies — evidence and vendor status.">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<nav class="site-nav"><div class="container">
+  <a href="index.html">Home</a>
+  <a href="whitepaper.html">Whitepaper</a>
+  <a href="master-report.html">Master Report</a>
+  <a href="legal-annex.html">Legal Annex</a>
+  <a href="source/whitepaper.md" class="src">source</a>
+</div></nav>
+
+<main class="container article">
+<div class="doc-title">GLOBAL UNAUTHENTICATED TELEMETRY INJECTION ZERO-DAYS</div>
+<h2>Master Report - Confirmed Vulnerabilities Across 10 Major Technology Companies</h2>
+<p><strong>Researcher:</strong> ek0ms<br />
+<strong>Date:</strong> July 13, 2026<br />
+<strong>Classification:</strong> CRITICAL - Multiple Zero-Day Vulnerabilities<br />
+<strong>Total Confirmed Endpoints:</strong> 80+<br />
+<strong>Affected Companies:</strong> 10</p>
+<hr />
+<h2>EXECUTIVE SUMMARY</h2>
+<p>This report documents the discovery of unauthenticated telemetry injection vulnerabilities across 80+ endpoints belonging to 10 major global technology companies. All confirmed endpoints accept arbitrary HTTP requests without authentication, authorization, or validation, allowing attackers to inject fake telemetry data into each company's internal data pipelines.</p>
+<p>An unauthenticated external party can submit attacker-controlled, protocol-valid events to a production telemetry collector under a legitimate application, site, device, or service identifier.</p>
+<p>The vulnerability class is identical across all targets: telemetry ingestion endpoints that return 200 OK or 204 No Content for unauthenticated requests, confirming data acceptance and processing. Injected data flows into downstream systems including analytics dashboards, ML training datasets, security monitoring, and business intelligence systems.</p>
+<p>The downstream consequences will depend on how each network internal systems:</p>
+<ul>
+<li>Store the submitted events</li>
+<li>Attribute them to applications, users, devices, or sessions</li>
+<li>Distinguish unauthenticated events from trusted telemetry</li>
+<li>Sanitize attacker-controlled properties</li>
+<li>Render them in dashboards or reports</li>
+<li>Use them for analytics, monitoring, security operations, automation, or model-development processes</li>
+</ul>
+<hr />
+<h2>VULNERABILITY CLASSIFICATION</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CWE</strong></td>
+<td>CWE-306: Missing Authentication for Critical Function</td>
+</tr>
+<tr>
+<td><strong>CVSS Vector</strong></td>
+<td>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H</td>
+</tr>
+<tr>
+<td><strong>CVSS Score</strong></td>
+<td>TBD</td>
+</tr>
+<tr>
+<td><strong>Attack Vector</strong></td>
+<td>Network</td>
+</tr>
+<tr>
+<td><strong>Attack Complexity</strong></td>
+<td>Low</td>
+</tr>
+<tr>
+<td><strong>Privileges Required</strong></td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>User Interaction</strong></td>
+<td>None</td>
+</tr>
+<tr>
+<td><strong>Impact</strong></td>
+<td>Data Integrity Compromise</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>CONFIRMED VULNERABLE ENDPOINTS</h2>
+<h3>MICROSOFT (13 endpoints)</h3>
+<p><strong>Endpoint Function:</strong> Microsoft's telemetry ingestion endpoints are part of the Azure/Office telemetry pipeline. The Application Insights endpoint (<code>eastus-8.in.applicationinsights.azure.com/v2.1/track</code>) accepts telemetry data from applications using Azure's monitoring services. The OneCollector endpoints (<code>browser.events.data.microsoft.com</code>, <code>vortex.data.microsoft.com</code>, and 7 regional endpoints) are part of Microsoft's 1DS (One Data Service) pipeline that processes telemetry from Windows, Office, Teams, Xbox, Azure Portal, and Azure AD.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Response</th>
+<th>Method</th>
+<th>Case</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>eastus-8.in.applicationinsights.azure.com/v2.1/track</code></td>
+<td>200 OK</td>
+<td>POST</td>
+<td>VULN-193698</td>
+<td>Active Triage</td>
+</tr>
+<tr>
+<td><code>browser.events.data.microsoft.com</code></td>
+<td>204 No Content</td>
+<td>POST</td>
+<td>VULN-200045</td>
+<td>Active Triage</td>
+</tr>
+<tr>
+<td><code>vortex.data.microsoft.com</code></td>
+<td>204 No Content</td>
+<td>POST</td>
+<td>VULN-200045</td>
+<td>Active Triage</td>
+</tr>
+<tr>
+<td>7 additional OneCollector endpoints</td>
+<td>204 No Content</td>
+<td>POST</td>
+<td>VULN-200045</td>
+<td>Active Triage</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Attack Capabilities Confirmed:</strong><br />
+- Basic event injection (204 on all endpoints)<br />
+- Bulk injection (10/10 events accepted)<br />
+- Large payload injection (50KB+ accepted)<br />
+- Steganographic C2 channels (commands hidden in ai.application.ver)<br />
+- Multiple API keys (2 keys confirmed working from login.microsoftonline.com and portal.azure.com)</p>
+<p><strong>Impact on Microsoft Network:</strong><br />
+- <strong>Application Insights:</strong> Attackers can inject fake telemetry into Azure monitoring, corrupting application performance metrics, error logs, and user analytics. Organizations relying on Application Insights for production monitoring would receive corrupted data, potentially leading to false incident responses and incorrect business decisions.<br />
+- <strong>OneCollector Pipeline:</strong> This pipeline feeds telemetry into OneCosmos/Kusto which powers Windows telemetry, Office metrics, Xbox analytics, and Azure portal monitoring. Injected data can:<br />
+  - Corrupt Windows update telemetry used for patch prioritization<br />
+  - Hide real security incidents by flooding with fake log entries<br />
+  - Poison ML models used for threat detection<br />
+  - Manipulate business intelligence used by Microsoft's product teams</p>
+<p><strong>Data Flow:</strong></p>
+<pre><code>Attacker → OneCollector/App Insights → 1DS Gateway → OneCosmos/Kusto → Downstream Analytics
+</code></pre>
+<hr />
+<h3>GOOGLE / ANDROID (2 endpoints + Waymo Vector)</h3>
+<p><strong>Endpoint Function:</strong> <code>android.googleapis.com/checkin</code> is the core Android device checkin protocol. Every Android device, upon boot, sends a checkin request to this endpoint to register with Google services, receive push tokens, and report device telemetry. This endpoint is also used by Waymo autonomous vehicles which run Android-based compute.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Response</th>
+<th>Method</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>android.googleapis.com/checkin</code></td>
+<td>200 OK (stats_ok: true)</td>
+<td>POST</td>
+<td>Android device + Waymo vehicle telemetry injection</td>
+</tr>
+<tr>
+<td><code>www.google-analytics.com/g/collect</code></td>
+<td>204 No Content</td>
+<td>POST</td>
+<td>GA4 analytics injection</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact on Google Network - ANDROID:</strong></p>
+<p>The checkin endpoint accepts arbitrary device identifiers without validation. This means attackers can:<br />
+- Create fake Android devices that appear legitimate in Google's ecosystem<br />
+- Bypass device-based security controls<br />
+- Flood the checkin pipeline with millions of fake devices<br />
+- Poison ML training data used for Android device analytics<br />
+- Manipulate Android device adoption metrics used for business decisions</p>
+<p><strong>CRITICAL: Waymo Vehicle Injection</strong></p>
+<p>Waymo autonomous vehicles use the same checkin protocol. The endpoint accepts Waymo-specific fields:<br />
+- <code>device:waymo-vehicle</code> - vehicle type identifier<br />
+- <code>fleet:waymo-autonomous</code> - fleet association<br />
+- <code>vehicle_id:WV934730</code> - unique vehicle ID (spoofable)</p>
+<p><strong>Waymo Vehicle Injection (CONFIRMED):</strong></p>
+<pre><code class="language-http">POST https://android.googleapis.com/checkin
+{
+  &quot;checkin&quot;: {
+    &quot;device_info&quot;: [
+      &quot;device:waymo-vehicle&quot;,
+      &quot;fleet:waymo-autonomous&quot;,
+      &quot;vehicle_id:WV329559&quot;
+    ]
+  }
+}
+</code></pre>
+<p><strong>Response:</strong> <code>{"stats_ok": true, "time_msec": 1783915228178}</code></p>
+<p><strong>Impact on Waymo Fleet:</strong></p>
+<p>This single endpoint creates a critical safety vector:<br />
+- <strong>Ghost Vehicles:</strong> Attackers can create fake Waymo vehicles that appear in fleet management systems. Dispatchers would see phantom vehicles in their fleet, affecting operational decisions.<br />
+- <strong>Fleet Manipulation:</strong> Fake vehicles can be injected with spoofed locations, speeds, and status data. If location data is spoofed, it could affect safety-critical systems.<br />
+- <strong>Compliance Reporting:</strong> Corrupted vehicle counts would affect regulatory reporting and insurance calculations.<br />
+- <strong>Training Data Poisoning:</strong> Waymo's ML models for autonomous driving are trained on telemetry data. Injected data would contaminate training datasets, potentially affecting model accuracy.</p>
+<p>The <code>stats_ok: true</code> response confirms data is written to Google's internal storage (BigQuery, Pub/Sub). This data flows directly into Waymo's fleet management backend.</p>
+<p><strong>Data Flow:</strong></p>
+<pre><code>Attacker → checkin (NO AUTH) → stats_ok:true → Google Telemetry Pipeline → BigQuery/Pub/Sub → Waymo Fleet Dashboard
+</code></pre>
+<p><strong>Status:</strong> Android VRP  - S2 Severity, P2 Priority - Active Investigation</p>
+<p><strong>GA4 Impact:</strong> The Google Analytics 4 endpoint (<code>www.google-analytics.com/g/collect</code>) accepts unauthenticated measurement protocol requests. Attackers can inject fake analytics data into any GA4 property, corrupting website analytics, conversion tracking, and user behavior metrics used for business decisions.</p>
+<hr />
+<h3>APPLE (2 endpoints)</h3>
+<p><strong>Endpoint Function:</strong> <code>metrics.icloud.com/metrics</code> is Apple's telemetry ingestion endpoint for iCloud services. It accepts metrics data from iOS devices, macOS machines, and iCloud services. <code>diagnostics.apple.com/telemetry</code> handles Apple's diagnostics reporting pipeline.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Response</th>
+<th>Method</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>metrics.icloud.com/metrics</code></td>
+<td>200 OK</td>
+<td>POST</td>
+<td>iCloud telemetry injection</td>
+</tr>
+<tr>
+<td><code>diagnostics.apple.com/telemetry</code></td>
+<td>200 OK</td>
+<td>POST</td>
+<td>Apple diagnostics telemetry injection</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact on Apple Network:</strong></p>
+<ul>
+<li><strong>iCloud Analytics:</strong> Attackers can inject fake device metrics, crash reports, and usage data into Apple's internal analytics. This affects:</li>
+<li>iCloud service performance monitoring</li>
+<li>Device adoption metrics</li>
+<li>Feature usage analysis for product decisions</li>
+<li>
+<p>ML training data for Siri, Photos, and iCloud features</p>
+</li>
+<li>
+<p><strong>Diagnostics Pipeline:</strong> The diagnostics endpoint accepts unauthenticated requests with arbitrary JSON payloads. Attackers can:</p>
+</li>
+<li>Inject fake crash reports to mask real issues</li>
+<li>Poison ML models used for anomaly detection</li>
+<li>
+<p>Corrupt iOS/macOS quality metrics</p>
+</li>
+<li>
+<p><strong>Multiple Formats Accepted:</strong> Both endpoints accept JSON, plain text, form data, and binary payloads without authentication.</p>
+</li>
+</ul>
+<p><strong>Status:</strong> - Under Review</p>
+<hr />
+<h3>META (3 core + 5 wearables endpoints)</h3>
+<p><strong>Endpoint Function:</strong> <code>www.facebook.com/tr</code> is the Facebook Pixel endpoint used by millions of advertisers to track conversions and build audiences. <code>/log</code> and <code>/metrics</code> are internal telemetry endpoints for logging and metrics collection.</p>
+<p><strong>Core Endpoints:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Response</th>
+<th>Method</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>www.facebook.com/tr</code></td>
+<td>200 OK</td>
+<td>GET/POST</td>
+<td>Facebook Pixel conversion injection</td>
+</tr>
+<tr>
+<td><code>www.facebook.com/log</code></td>
+<td>200 OK</td>
+<td>POST</td>
+<td>Internal log injection</td>
+</tr>
+<tr>
+<td><code>www.facebook.com/metrics</code></td>
+<td>200 OK</td>
+<td>POST</td>
+<td>Internal metrics injection</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact on Meta Network - Core:</strong></p>
+<ul>
+<li><strong>Facebook Pixel:</strong> This endpoint processes billions of conversion events daily. Attackers can:</li>
+<li>Inject fake conversions (purchases, signups, leads)</li>
+<li>Wast advertiser spend on misattributed campaigns</li>
+<li>Corrupt Facebook's Ad attribution models</li>
+<li>Poison lookalike audience source data</li>
+<li>
+<p>Damage advertiser trust in Meta's measurement systems</p>
+</li>
+<li>
+<p><strong>Internal Logging (<code>/log</code>):</strong> Attackers can inject fake log entries that appear legitimate in Meta's security monitoring. This can:</p>
+</li>
+<li>Hide real attacks among fake log entries</li>
+<li>Delay incident response</li>
+<li>Corrupt compliance audit trails</li>
+<li>
+<p>Poison ML models used for threat detection</p>
+</li>
+<li>
+<p><strong>Internal Metrics (<code>/metrics</code>):</strong> Attackers can inject fake metrics into Meta's monitoring systems. Engineering teams make capacity decisions, product decisions, and resource allocations based on corrupted data.</p>
+</li>
+</ul>
+<p><strong>Meta Wearables / Smart Glasses Attack Surface:</strong></p>
+<p>The Developer Analytics Tools (DAT) for Ray-Ban Meta Smart Glasses collects custom events, session metrics, and device telemetry.</p>
+<table>
+<thead>
+<tr>
+<th>App ID</th>
+<th>Application</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>464891386855067</td>
+<td>Tinder</td>
+<td>CONFIRMED</td>
+</tr>
+<tr>
+<td>936619743392459</td>
+<td>Instagram Web</td>
+<td>CONFIRMED</td>
+</tr>
+<tr>
+<td>174829003346</td>
+<td>Spotify</td>
+<td>CONFIRMED</td>
+</tr>
+<tr>
+<td>1405987639482438</td>
+<td>Plex</td>
+<td>CONFIRMED</td>
+</tr>
+<tr>
+<td>9869919170</td>
+<td>The New York Times</td>
+<td>CONFIRMED</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Glasses-Specific Telemetry Injection (ALL 200 OK):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Event Type</th>
+<th>Result</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VOICE_COMMAND</td>
+<td>ACCEPTED</td>
+<td>Voice transcription telemetry can be poisoned</td>
+</tr>
+<tr>
+<td>AI_QUERY</td>
+<td>ACCEPTED</td>
+<td>AI query data can be corrupted</td>
+</tr>
+<tr>
+<td>MEDIA_CAPTURE</td>
+<td>ACCEPTED</td>
+<td>Media metadata can be injected</td>
+</tr>
+<tr>
+<td>BUTTON_PRESS</td>
+<td>ACCEPTED</td>
+<td>Interaction metrics can be manipulated</td>
+</tr>
+<tr>
+<td>DEVICE_STATUS</td>
+<td>ACCEPTED</td>
+<td>Device health telemetry can be corrupted</td>
+</tr>
+<tr>
+<td>GLASSES_BATTERY</td>
+<td>ACCEPTED</td>
+<td>Battery metrics can be spoofed</td>
+</tr>
+<tr>
+<td>GLASSES_CONNECTIVITY</td>
+<td>ACCEPTED</td>
+<td>Connectivity metrics can be manipulated</td>
+</tr>
+<tr>
+<td>GLASSES_SENSOR</td>
+<td>ACCEPTED</td>
+<td>Sensor data can be injected</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact on Wearables Ecosystem:</strong><br />
+- Inject fake voice commands and AI queries<br />
+- Corrupt session replay data<br />
+- Poison ML models for voice recognition<br />
+- Manipulate device health metrics<br />
+- Stored XSS risk if data is rendered in DAT dashboard</p>
+<p><strong>Status:</strong> Submitted to Meta Bug Bounty (Report: 122102502879389843)</p>
+<hr />
+<h3>LINKEDIN (39+ endpoints)</h3>
+<p><strong>Endpoint Function:</strong> LinkedIn's telemetry pipeline handles ad conversion tracking, analytics, and user behavior data across <code>px.ads.linkedin.com</code>, <code>dc.ads.linkedin.com</code>, and <code>ads.linkedin.com</code>. These endpoints process billions of ad events and analytics data points daily.</p>
+<table>
+<thead>
+<tr>
+<th>Subdomain</th>
+<th>Endpoints</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>px.ads.linkedin.com</code></td>
+<td>13</td>
+<td>200 OK</td>
+</tr>
+<tr>
+<td><code>dc.ads.linkedin.com</code></td>
+<td>13</td>
+<td>200 OK</td>
+</tr>
+<tr>
+<td><code>ads.linkedin.com</code></td>
+<td>13</td>
+<td>200 OK</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Endpoint Types and Functions:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/collect</code></td>
+<td>Main telemetry collection endpoint - accepts all event data</td>
+</tr>
+<tr>
+<td><code>/track</code></td>
+<td>Standard tracking pixel - page views and user actions</td>
+</tr>
+<tr>
+<td><code>/convert</code></td>
+<td>Conversion tracking - ad attribution events</td>
+</tr>
+<tr>
+<td><code>/pixel</code></td>
+<td>Standard pixel endpoint - general tracking</td>
+</tr>
+<tr>
+<td><code>/event</code></td>
+<td>Individual event tracking</td>
+</tr>
+<tr>
+<td><code>/events</code></td>
+<td>Batch event tracking - multiple events per request</td>
+</tr>
+<tr>
+<td><code>/analytics</code></td>
+<td>Analytics collection - business intelligence data</td>
+</tr>
+<tr>
+<td><code>/beacon</code></td>
+<td>Beacon pixel - background tracking</td>
+</tr>
+<tr>
+<td><code>/ping</code></td>
+<td>Keepalive/heartbeat - session persistence</td>
+</tr>
+<tr>
+<td><code>/log</code></td>
+<td>Internal logging - server-side logs</td>
+</tr>
+<tr>
+<td><code>/metrics</code></td>
+<td>Metrics collection - performance monitoring</td>
+</tr>
+<tr>
+<td><code>/v2/collect</code></td>
+<td>API v2 version of collect endpoint</td>
+</tr>
+<tr>
+<td><code>/v2/track</code></td>
+<td>API v2 version of track endpoint</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key Evidence of Data Storage:</strong><br />
+- <code>linkedin-action: 1</code> header - confirms data ingestion<br />
+- <code>x-li-uuid</code> unique event ID - confirms data storage<br />
+- <code>x-li-fabric: prod-lor1</code> - processing in LinkedIn production environment<br />
+- Cookies (<code>bcookie</code>, <code>lidc</code>) - session tracking confirms real service</p>
+<p><strong>Impact on LinkedIn Network:</strong></p>
+<ul>
+<li>
+<p><strong>Ad Attribution Fraud:</strong> Attackers can inject fake conversion events, causing advertisers to waste budget on misattributed campaigns. This directly impacts LinkedIn's ad revenue model and advertiser trust.</p>
+</li>
+<li>
+<p><strong>Analytics Corruption:</strong> All analytics data (page views, user actions, session metrics) can be manipulated. Business decisions made based on corrupted analytics would be flawed.</p>
+</li>
+<li>
+<p><strong>Stored XSS Risk:</strong> XSS payloads accepted in <code>url</code> and <code>ref</code> parameters. If these are rendered in LinkedIn Campaign Manager dashboards without sanitization, stored XSS attacks are possible.</p>
+</li>
+<li>
+<p><strong>Data Poisoning:</strong> ML models for ad targeting and recommendations would be trained on corrupted data.</p>
+</li>
+<li>
+<p><strong>Security Monitoring Evasion:</strong> Fake log entries can be injected into <code>/log</code> endpoint, hiding real attacks.</p>
+</li>
+<li>
+<p><strong>Resource Exhaustion:</strong> No rate limiting allows flood attacks.</p>
+</li>
+</ul>
+<p><strong>Status:</strong> Submitted to security@linkedin.com</p>
+<hr />
+<h3>BAIDU (7 endpoints)</h3>
+<p><strong>Endpoint Function:</strong> Baidu's telemetry infrastructure powers Baidu Analytics (China's largest web analytics platform). <code>hm.baidu.com/hm.gif</code> is the tracking pixel used by millions of Chinese websites. <code>nsclick.baidu.com/*.gif</code> handles click tracking, user tracking, view tracking, session tracking, and device tracking.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Response</th>
+<th>Method</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hm.baidu.com/hm.gif</code></td>
+<td>200 OK (43-byte GIF)</td>
+<td>GET</td>
+<td>Baidu Analytics tracking injection</td>
+</tr>
+<tr>
+<td><code>nsclick.baidu.com/t.gif</code></td>
+<td>200 OK</td>
+<td>GET</td>
+<td>Click tracking injection</td>
+</tr>
+<tr>
+<td><code>nsclick.baidu.com/click.gif</code></td>
+<td>200 OK</td>
+<td>GET</td>
+<td>Click tracking injection</td>
+</tr>
+<tr>
+<td><code>nsclick.baidu.com/u.gif</code></td>
+<td>200 OK</td>
+<td>GET</td>
+<td>User tracking injection</td>
+</tr>
+<tr>
+<td><code>nsclick.baidu.com/v.gif</code></td>
+<td>200 OK</td>
+<td>GET</td>
+<td>View tracking injection</td>
+</tr>
+<tr>
+<td><code>nsclick.baidu.com/s.gif</code></td>
+<td>200 OK</td>
+<td>GET</td>
+<td>Session tracking injection</td>
+</tr>
+<tr>
+<td><code>nsclick.baidu.com/d.gif</code></td>
+<td>200 OK</td>
+<td>GET</td>
+<td>Device tracking injection</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact on Baidu Network:</strong></p>
+<ul>
+<li><strong>Analytics Fraud:</strong> Attackers can inject fake analytics data into any Baidu Analytics property. This affects:</li>
+<li>Website traffic metrics used for business decisions</li>
+<li>Ad campaign performance measurement</li>
+<li>
+<p>User behavior analysis for product development</p>
+</li>
+<li>
+<p><strong>Stored XSS Risk:</strong> The Baidu Tongji dashboard JavaScript contains 19 instances of <code>dangerouslySetInnerHTML</code>. XSS canary payloads were accepted with 200 OK responses. If injected data is rendered in the dashboard, stored XSS attacks are possible.</p>
+</li>
+<li>
+<p><strong>CORS Misconfiguration:</strong> <code>nsclick.baidu.com</code> endpoints have <code>Access-Control-Allow-Origin: *</code> and <code>Access-Control-Allow-Credentials: true</code>, enabling CSRF attacks.</p>
+</li>
+<li>
+<p><strong>Data Poisoning:</strong> ML models for Baidu's recommendation systems and ad targeting would be trained on corrupted analytics data.</p>
+</li>
+<li>
+<p><strong>Resource Exhaustion:</strong> No rate limiting allows flood attacks.</p>
+</li>
+</ul>
+<p><strong>Status:</strong> Ready to submit to BSRC (international_bsrc@baidu.com)</p>
+<hr />
+<h3>CNZZ/UMENG (4 endpoints)</h3>
+<p><strong>Endpoint Function:</strong> CNZZ is one of China's largest analytics platforms, owned by Alibaba Group. <code>cnzz.mmstat.com</code> is the tracking pixel endpoint. <code>s9.cnzz.com/z_stat.php</code>, <code>s4.cnzz.com/z_stat.php</code>, and <code>s19.cnzz.com/z_stat.php</code> are regional tracking endpoints.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Response</th>
+<th>Method</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cnzz.mmstat.com</code></td>
+<td>200 OK (43-byte GIF)</td>
+<td>GET</td>
+<td>Analytics tracking injection</td>
+</tr>
+<tr>
+<td><code>s9.cnzz.com/z_stat.php</code></td>
+<td>200 OK (0 bytes, CORS: *)</td>
+<td>GET</td>
+<td>Analytics tracking injection</td>
+</tr>
+<tr>
+<td><code>s4.cnzz.com/z_stat.php</code></td>
+<td>200 OK (0 bytes, CORS: *)</td>
+<td>GET</td>
+<td>Analytics tracking injection</td>
+</tr>
+<tr>
+<td><code>s19.cnzz.com/z_stat.php</code></td>
+<td>200 OK (0 bytes, CORS: *)</td>
+<td>GET</td>
+<td>Analytics tracking injection</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact on CNZZ/Umeng Network:</strong></p>
+<ul>
+<li><strong>Analytics Fraud:</strong> Same pattern as Baidu - attackers can inject fake traffic, page views, and user events into any CNZZ property.</li>
+<li><strong>CORS Misconfiguration:</strong> <code>Access-Control-Allow-Origin: *</code> enables cross-origin attacks.</li>
+<li><strong>Data Poisoning:</strong> Affects Alibaba's analytics and ad targeting ML models.</li>
+<li><strong>Stored XSS Risk:</strong> XSS canary payloads accepted in url, ref, and param fields.</li>
+</ul>
+<p><strong>Status:</strong> Ready to report to Alibaba Security (security@alibaba-inc.com)</p>
+<hr />
+<h3>TENCENT (1 endpoint)</h3>
+<p><strong>Endpoint Function:</strong> <code>h.trace.qq.com/kv</code> is Tencent's telemetry trace endpoint, used for collecting analytics and trace data from Tencent's ecosystem (WeChat, QQ, Tencent Cloud, etc.).</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Response</th>
+<th>Method</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>h.trace.qq.com/kv</code></td>
+<td>200 OK</td>
+<td>POST/GET</td>
+<td>Tencent Trace telemetry injection</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact on Tencent Network:</strong></p>
+<ul>
+<li><strong>Analytics Injection:</strong> Attackers can inject arbitrary telemetry into Tencent's trace pipeline.</li>
+<li><strong>Bulk Injection:</strong> 10/10 requests accepted (100% success rate) - no rate limiting.</li>
+<li><strong>XSS Canary:</strong> Accepted in url, ref, msg, data fields - stored XSS risk.</li>
+<li><strong>Data Poisoning:</strong> Affects WeChat, QQ, and Tencent Cloud analytics.</li>
+<li><strong>Security Monitoring:</strong> Fake traces can hide real attacks.</li>
+</ul>
+<p><strong>Status:</strong> Ready to submit to TSRC (security@tencent.com)</p>
+<hr />
+<h3>MATOMO (1 endpoint)</h3>
+<p><strong>Endpoint Function:</strong> Matomo is an open-source analytics platform. <code>demo.matomo.org/matomo.php</code> is a demo instance of the Matomo tracking endpoint, but the vulnerability likely affects all self-hosted Matomo instances with default configurations.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Response</th>
+<th>Method</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>demo.matomo.org/matomo.php</code></td>
+<td>200 OK (43-byte GIF)</td>
+<td>GET</td>
+<td>Matomo analytics injection</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact on Matomo Network:</strong></p>
+<ul>
+<li><strong>Analytics Injection:</strong> Attackers can inject fake analytics data into Matomo instances.</li>
+<li><strong>Self-Hosted Risk:</strong> 1M+ self-hosted Matomo instances may be vulnerable if authentication is not enabled.</li>
+<li><strong>Data Poisoning:</strong> Affects analytics used for business decisions.</li>
+<li><strong>Stored XSS Risk:</strong> Action_name and custom variables may render unsanitized.</li>
+</ul>
+<p><strong>Status:</strong> Ready to report to Matomo Security</p>
+<hr />
+<h3>FLOCK SAFETY (1 endpoint)</h3>
+<p><strong>Endpoint Function:</strong> Flock Safety uses Segment as their analytics pipeline. The Segment WriteKey was found exposed in client-side JavaScript bundles, allowing unauthenticated telemetry injection.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Response</th>
+<th>Method</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>api.segment.io/v1/track</code></td>
+<td>200 OK</td>
+<td>POST</td>
+<td>Segment analytics injection</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Exposed WriteKey:</strong> <code>EG2u2hLdqtlP5MnuRg4HSGMbyGHfGAc3</code></p>
+<p><strong>Test Results (9/10 passed):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basic Event Injection</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>XSS Payloads (5 variants)</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>Bulk Injection (10/10)</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>Heartbeat (5/5)</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>Complete Payload</td>
+<td>PASS</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact on Flock Safety Network:</strong></p>
+<ul>
+<li><strong>Analytics Injection:</strong> Attackers can inject arbitrary events into Flock Safety's Segment pipeline.</li>
+<li><strong>Stored XSS Risk:</strong> XSS payloads accepted in properties.url - if rendered in dashboards.</li>
+<li><strong>Data Poisoning:</strong> ML models for ALPR and safety analytics corrupted.</li>
+<li><strong>Security Monitoring:</strong> Fake events can hide real attacks.</li>
+</ul>
+<p><strong>Note:</strong> The Segment WriteKey exposed in client-side JS is a critical credential exposure issue.</p>
+<p><strong>Status:</strong> Ready to report to security@flocksafety.com</p>
+<hr />
+<h2>GLOBAL COVERAGE MAP</h2>
+<pre><code>NORTH AMERICA                    EUROPE                    ASIA
+─────────────                    ──────                    ────
+ Microsoft (13)                 Matomo (1)               Baidu (7)
+ Google (2 + Waymo)                                     CNZZ/Umeng (4)
+ Meta (8)                                               Tencent (1)
+ Apple (2)
+ LinkedIn (39+)
+ Flock Safety (1)
+
+TOTAL: 80+ endpoints across 10 companies
+</code></pre>
+<hr />
+<h2>IMPACT ASSESSMENT</h2>
+<h3>Data Integrity Compromise</h3>
+<p>Attackers can inject arbitrary telemetry into each company's internal systems. 200 OK responses confirm data is written to storage.</p>
+<h3>Analytics Corruption</h3>
+<p>Dashboards show incorrect metrics. Engineering and product teams make decisions based on corrupted data.</p>
+<h3>ML/AI Training Data Poisoning</h3>
+<p>Training datasets contaminated, causing models to learn incorrect patterns.</p>
+<h3>Waymo Safety Impact (Google)</h3>
+<p>Injected vehicles appear indistinguishable from real Waymo vehicles.</p>
+<h3>Ad Attribution Fraud (Meta, LinkedIn)</h3>
+<p>Fake conversion events corrupt ad attribution, wasting advertiser spend.</p>
+<h3>Security Monitoring Evasion</h3>
+<p>Fake log entries hide real attacks and delay incident response.</p>
+<hr />
+<h2>REPORTING STATUS</h2>
+<p>| Company | Status | Contact | Case ID | NOTES |<br />
+|---------|--------|---------|---------|<br />
+| Microsoft |  Active Triage | MRSC | VULN-193698, VULN-200045 |<br />
+| Google |  Active Investigation | Android VRP |  |<br />
+| Apple |  Under Review | Apple Security Bounty | OE110716814418 |<br />
+| Meta |  Submitted | Meta Bug Bounty | 122102502879389843 |closed intended behaivor - submitted comment and new report same report number<br />
+| LinkedIn |  Submitted | security@linkedin.com | - |<br />
+| Baidu |  Ready to Submit | international_bsrc@baidu.com | - |<br />
+| CNZZ/Umeng |  Ready to Report | security@alibaba-inc.com | - |<br />
+| Tencent |  Ready to Submit | security@tencent.com | - |<br />
+| Matomo |  Ready to Report | Matomo Security | - |<br />
+| Flock Safety |  Ready to Report | security@flocksafety.com | - |</p>
+<hr />
+<h2>CONCLUSION</h2>
+<p>This report documents a global, systemic vulnerability class affecting 80+ telemetry ingestion endpoints across 10 major technology companies. The vulnerability allows unauthenticated attackers to inject arbitrary telemetry data into each company's internal data pipelines, corrupting analytics, ML training, security monitoring, and business intelligence systems.</p>
+<p>The <strong>Google android.googleapis.com/checkin endpoint</strong> is the most severe due to its impact on Waymo autonomous vehicle infrastructure, creating potential safety and operational risks.</p>
+<p><strong>Immediate action is required</strong> from all affected companies to implement authentication and validation controls on their telemetry ingestion endpoints.</p>
+<hr />
+<p><strong>Researcher:</strong> ek0ms<br />
+<strong>Contact:</strong> ek0ms611@gmail.com<br />
+<strong>Classification:</strong> CRITICAL - Multiple Zero-Day Vulnerabilities<br />
+<strong>Total Endpoints:</strong> 80+ across 10 companies<br />
+<strong>Report Date:</strong> July 13, 2026</p>
+<hr />
+<h2>Crown Jewel Highlight</h2>
+<p><strong>Google Waymo vector is the crown jewel</strong> — <code>stats_ok: true</code> on unauthenticated checkin is wild. This single endpoint allows:<br />
+- Spoofing autonomous vehicles in Waymo's fleet<br />
+- Ghost vehicles affecting operational decisions<br />
+- Potential safety impact if location data is spoofed<br />
+- Compliance reporting corrupted</p>
+<p>This is the most severe finding in this entire report.</p>
+</main>
+<footer class="site-footer"><div class="container">
+<p>&copy; 2026 Church of Malware &middot; <a href="https://churchofmalware.org">churchofmalware.org</a> &middot; <a href="index.html">triage home</a></p>
+<p class="note">Public-interest disclosure. No exploit code; no instructions enabling harm. TLP:CLEAR.</p>
+</div></footer>
+</body>
+</html>

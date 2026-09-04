@@ -8,14 +8,16 @@ NAV = """
 <nav class="site-nav"><div class="container">
   <a href="index.html">Home</a>
   <a href="whitepaper.html">Whitepaper</a>
+  <a href="trust-crisis.html">Trust Crisis</a>
   <a href="endpoints.html">Endpoints</a>
   <a href="galaxy.html">Galaxy</a>
   <a href="threat-map.html">Threat Map</a>
   <a href="master-report.html">Master Report</a>
-  <a href="vrp-correspondence.html">VRP</a>
+  <a href="dossiers.html">Dossiers</a>
+  <a href="vrp-correspondence.html">Correspondence</a>
+  <a href="hyperject.html">Hyperject</a>
   <a href="legal-annex.html">Legal</a>
-</div></nav>
-"""
+</div></nav>"""
 
 TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -56,6 +58,9 @@ def gen(src, out, title, desc):
     print("wrote", out, len(page), "bytes")
 
 if __name__ == "__main__":
+    gen("source/whitepaper-trust-crisis.md", "trust-crisis.html",
+        "The Telemetry Trust Crisis — Systemic Architectural Risk Against Data Provenance, AI Training, and Security Operations",
+        "Second whitepaper (ek0ms savi0r & k3n): telemetry trust crisis — architectural risk, walkthroughs, vendor impact, mitigations. Public disclosure 2026-09-05.")
     gen("source/whitepaper.md", "whitepaper.html",
         "Whitepaper — Unauthenticated Telemetry Injection and the Collapse of Data Provenance",
         "Church of Malware whitepaper: telemetry provenance, trust boundaries, and unauthenticated ingestion — assessment model and claim boundaries.")

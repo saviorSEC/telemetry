@@ -1,9 +1,9 @@
-# GLOBAL UNAUTHENTICATED TELEMETRY INJECTION ZERO-DAYS
+# GLOBAL UNAUTHENTICATED TELEMETRY INJECTION — VULNS
 ## Master Report - Confirmed Vulnerabilities Across 10 Major Technology Companies
 
 **Researcher:** ek0ms  
 **Date:** July 13, 2026  
-**Classification:** CRITICAL - Multiple Zero-Day Vulnerabilities  
+**Classification:** TBD — multiple telemetry-injection vulns  
 **Total Confirmed Endpoints:** 80+  
 **Affected Companies:** 10
 
@@ -96,7 +96,7 @@ The checkin endpoint accepts arbitrary device identifiers without validation. Th
 - Poison ML training data used for Android device analytics
 - Manipulate Android device adoption metrics used for business decisions
 
-**CRITICAL: Waymo Vehicle Injection**
+**Waymo vehicle fields — severity TBD**
 
 Waymo autonomous vehicles use the same checkin protocol. The endpoint accepts Waymo-specific fields:
 - `device:waymo-vehicle` - vehicle type identifier
@@ -120,7 +120,7 @@ POST https://android.googleapis.com/checkin
 
 **Impact on Waymo Fleet:**
 
-This single endpoint creates a critical safety vector:
+This single endpoint creates a safety-relevant vector:
 - **Ghost Vehicles:** Attackers can create fake Waymo vehicles that appear in fleet management systems. Dispatchers would see phantom vehicles in their fleet, affecting operational decisions.
 - **Fleet Manipulation:** Fake vehicles can be injected with spoofed locations, speeds, and status data. If location data is spoofed, it could affect safety-critical systems.
 - **Compliance Reporting:** Corrupted vehicle counts would affect regulatory reporting and insurance calculations.
@@ -405,7 +405,7 @@ The Developer Analytics Tools (DAT) for Ray-Ban Meta Smart Glasses collects cust
 - **Data Poisoning:** ML models for ALPR and safety analytics corrupted.
 - **Security Monitoring:** Fake events can hide real attacks.
 
-**Note:** The Segment WriteKey exposed in client-side JS is a critical credential exposure issue.
+**Note:** The Segment WriteKey exposed in client-side JS is a credential exposure issue.
 
 **Status:** Ready to report to security@flocksafety.com
 
@@ -479,7 +479,7 @@ The **Google android.googleapis.com/checkin endpoint** is the most severe due to
 
 **Researcher:** ek0ms  
 **Contact:** ek0ms611@gmail.com  
-**Classification:** CRITICAL - Multiple Zero-Day Vulnerabilities  
+**Classification:** TBD — multiple telemetry-injection vulns  
 **Total Endpoints:** 80+ across 10 companies  
 **Report Date:** July 13, 2026
 

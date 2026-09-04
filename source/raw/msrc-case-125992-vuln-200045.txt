@@ -1,0 +1,339 @@
+
+Microsoft
+
+Unauthenticated Telemetry Injection in Microsoft OneCollector Pipeline (browser.events.data.microsoft.com, vortex.data.microsoft.com)
+Unauthenticated Telemetry Injection in Microsoft OneCollector Pipeline (browser.events.data.microsoft.com, vortex.data.microsoft.com)
+
+VULN-200045
+
+This case is now closed. See the activity feed for resolution details. Please reply on this case only if you have new information or questions about an upcoming disclosure.
+
+onecollector_poc.py was uploaded
+Jul 6, 2026, 7:35 PM
+
+mrsc.png was uploaded
+Jul 6, 2026, 7:35 PM
+S
+Submitter created this report.
+Jul 6, 2026, 7:54 PM
+
+Description
+
+The OneCollector telemetry pipeline accepts unauthenticated POST requests with the client-id=NO_AUTH parameter. Two endpoints (browser.events.data.microsoft.com and vortex.data.microsoft.com) return 204 No Content for arbitrary telemetry events with no authentication required.
+
+A global API key (69adc3c768bd4dc08c19416121249fcc-66f1668a-797b-4249-95e3-6c6651768c28-7293) was discovered in the client-side source code of login.microsoftonline.com. This key can be used to inject arbitrary events into Microsoft's telemetry pipeline.
+
+The injection supports:
+
+    Basic event injection
+    Bulk injection (10/10 events accepted)
+    Large payload injection (50KB+)
+    Steganographic C2 channels (commands hidden in ai.application.ver)
+    Custom event properties
+
+This is the same vulnerability pattern as VULN-193698 (App Insights injection), but affects a different telemetry pipeline.
+M
+MSRCAuto-notification Jul 6, 2026, 8:08 PM
+
+Hello,
+Thank you for contacting the Microsoft Security Response Center (MSRC).
+Your report has been received, and you should receive a follow-up message from the case manager once your case has been fully reviewed. You can read more on what to expect when working with us on the MSRC website.  …
+See more
+M
+MSRCAuto-notification Jul 7, 2026, 1:00 PM
+
+Thank you for contacting the Microsoft Security Response Center (MSRC). I've opened a case for this issue:
+MSRC Case 125992
+ChurchofMalwre
+Please only respond or communicate with us using the researcher portal. Also, please keep the details of this case confidential during our investigation.  …
+See more
+ES
+ek0ms savi0rJul 7, 2026, 8:29 PM
+
+Subject: Additional OneCollector API Key Discovered – Azure Portal (portal.azure.com)
+
+Dear MSRC Team,
+
+During continued analysis of the OneCollector telemetry pipeline, we have identified a second API key used by the Azure Portal (portal.azure.com). This key follows the same NO_AUTH pattern as the Azure AD key originally reported, and has been confirmed to work on both OneCollector endpoints. …
+See more
+ES
+ek0ms savi0rJul 7, 2026, 9:39 PM
+URGENT UPDATE: OneCollector Vulnerability – Entire Global Infrastructure Confirmed
+
+Dear MSRC Team,
+
+We have identified a critical expansion of the OneCollector vulnerability initially reported in VULN-200045. Our continued testing has confirmed that the entire global OneCollector (1DS) telemetry infrastructure is vulnerable to unauthenticated injection. …
+See more
+M
+MSRCJul 8, 2026, 8:55 PM
+
+Hello,
+
+Thank you for your message.
+We will review these details and reach out to you once we have an update.
+
+Warm regards,
+MSRC
+M
+MSRCJul 14, 2026, 3:34 PM
+
+Hello,
+
+Thank you for your report and for working with the Microsoft Security Response Center (MSRC). We appreciate the time and effort you took to help protect Microsoft and our customers.
+
+After careful review, this case does not meet Microsoft’s definition of a security vulnerability and is below threshold for servicing. …
+See more
+ES
+ek0ms savi0rJul 17, 2026, 9:03 AM
+
+Hello MSRC Team,
+
+Thank you for providing Microsoft’s technical position regarding MSRC Case 125992 and the OneCollector telemetry-ingestion service.
+
+I understand Microsoft’s explanation that:
+
+    OneCollector intentionally accepts telemetry from browser and client SDKs running on machines Microsoft does not control; …
+
+See more
+M
+MSRCJul 17, 2026, 6:46 PM
+
+Hello ek0ms savi0r,
+
+Thank you for your message.
+We will review it and respond to you as soon as we have an update. Please allow us sometime.
+We appreciate your support.
+
+Warm regards,
+MSRC
+M
+MSRCJul 22, 2026, 7:09 PM
+
+Hello ek0ms savi0r,
+
+Thank you for your patience.
+
+Our teams, including the service owners, reviewed your follow-up and evaluated the report. The assessment remains unchanged: this issue is Low severity.
+
+We evaluated the integrity concern, including whether attacker-controlled telemetry could bypass ba …
+See more
+ES
+ek0ms savi0rJul 25, 2026, 11:29 PM
+
+Hello MSRC Team,
+
+Thank you for providing Microsoft’s final assessment.
+
+I understand Microsoft’s stated position to be that:
+
+    OneCollector intentionally accepts telemetry from broad client environments;
+    Backend validation, filtering, and trust-handling controls exist;
+    Microsoft evaluated whether attacker-controlled events could bypass those controls and be consumed as trusted downstream data;
+    Microsoft did not observe that outcome based on the evidence reviewed; and
+    Microsoft considers the reported condition Low severity and does not plan further servicing.
+
+I will represent that position accurately in my publication.
+
+However, several matters require clarification for the upcoming disclosure record.
+
+Classification inconsistency
+
+Microsoft previously stated that this case did not meet its definition of a security vulnerability and was below the servicing threshold.
+
+The latest response states that the issue is Low severity.
+
+Please clarify which of the following is Microsoft’s final classification:
+
+    A security vulnerability classified as Low severity;
+    A non-security issue with Low operational impact;
+    Intended behavior that does not constitute a vulnerability; or
+    Another classification.
+
+Those positions are not interchangeable, and the publication must describe Microsoft’s final determination accurately.
+
+Scope of Microsoft’s technical validation
+
+Your response states that Microsoft “did not observe” a bypass of downstream trust controls.
+
+Please clarify whether that conclusion was based on:
+
+    An actual trace of the submitted canary events;
+    Review of production telemetry records;
+    Review of the OneCollector architecture and configuration;
+    Controlled internal reproduction by the service owner;
+    Confirmation that the events were discarded or quarantined;
+    Confirmation that the events retained an immutable untrusted-provenance classification; or
+    A general assessment of the system’s intended design.
+
+Please also answer:
+
+    Were the submitted canaries located?
+    Were they discarded, quarantined, retained, aggregated, or forwarded?
+    Do externally submitted events receive a server-controlled provenance classification?
+    Is that classification unavailable for external callers to create, alter, or remove?
+    Does it remain attached through storage, transformation, aggregation, and export?
+    Are downstream consumers technically prevented from treating such events as authenticated or trusted telemetry?
+    At what stage does filtering occur—before storage and aggregation, or afterward?
+
+I am not requesting source code, proprietary detection rules, internal credentials, database names, or sensitive architecture. A high-level service-owner attestation would be sufficient.
+
+Why the distinction matters
+
+Backend cleanup is not equivalent to durable provenance enforcement.
+
+If an unauthenticated event is stored with valid telemetry, contributes to an aggregate, or becomes available to a consumer before filtering, the integrity impact may occur before later cleanup.
+
+The relevant question is therefore not merely whether Microsoft has filtering controls. It is whether unverified events remain technically distinguishable from valid events throughout the complete processing lifecycle.
+
+Privacy and legal review
+
+I am not asserting that the observed HTTP response independently proves a legal violation.
+
+However, if unauthenticated telemetry is retained with valid telemetry, linked to identifiable users, accounts, devices, or online identifiers, or used to influence records concerning individuals, Microsoft’s privacy and legal teams should review the applicable accuracy, integrity, security, and rectification requirements.
+
+Potentially relevant frameworks include:
+
+    GDPR Articles 5(1)(d), 5(1)(f), 25, and 32, concerning accuracy, integrity, data protection by design, and security of processing;
+    California Civil Code §§ 1798.100(e), 1798.106, and 1798.81.5, concerning reasonable security and correction of inaccurate personal information; and
+    Section 5 of the Federal Trade Commission Act, where actual data-security practices or representations could constitute unfair or deceptive practices depending on the facts.
+
+These provisions do not establish a violation merely because OneCollector accepted an event. Their relevance depends on Microsoft’s actual retention, attribution, segregation, and downstream use of the submitted data.
+
+Please confirm whether Microsoft’s privacy, data-protection, or legal personnel reviewed this matter.
+
+CERT/CC coordination and publication
+
+This case is part of a broader cross-vendor investigation into unauthenticated telemetry ingestion, producer authenticity, and preservation of data provenance across systems operated by major technology vendors.
+
+I am preparing a coordinated submission to CERT/CC and, where appropriate, CISA. The complete MSRC correspondence, including Microsoft’s classification and statements concerning backend controls, will be included in that coordination package.
+
+This is not being presented as proof that Microsoft’s controls failed. It will be presented as:
+
+    Confirmation that unauthenticated telemetry ingestion is intentional;
+    Microsoft’s assertion that backend trust controls protect downstream use;
+    Microsoft’s conclusion that no control-bypass outcome was observed;
+    The absence or presence of any canary trace information Microsoft provides;
+    The final severity and servicing determination; and
+    The unresolved distinction between intended architecture and externally verifiable event disposition.
+
+Publication of the consolidated research remains scheduled for:
+
+September 5, 2026
+
+Microsoft’s silence, closure of this case, or continued internal discussion will not constitute my agreement to extend that timeline.
+
+No extension exists unless Microsoft submits a specific proposal and I expressly accept it.
+
+The publication will redact credentials, unnecessary operational details, and personal information. It will distinguish confirmed external observations, Microsoft’s statements, technical inferences, and facts that could not be independently verified.
+
+If Microsoft would like the relevant Microsoft section reviewed solely for factual accuracy before publication, please identify an authorized technical contact. Such review would not grant Microsoft editorial approval or automatically modify the publication date.
+
+Please provide the requested classification and technical clarifications for the disclosure record.
+
+Respectfully,
+
+ek0ms savi0r
+Church of Malware
+See less
+M
+MSRCJul 27, 2026, 5:19 PM
+
+Hello ek0ms savi0r,
+
+Thank you for your message and queries.
+We will review this with our teams and reach out to you as soon as we have an upate.
+We appreciate you sharing with us your intention of disclosing this issue. It would be great if you can share with us your plan to disclosure - date, medium and draft- to give us some time later to review and connect with you on that. …
+See more
+M
+MSRCJul 31, 2026, 6:52 PM
+
+Hello ek0ms savi0r,
+
+Our teams are reviewing your message, and we expect to provide a substantive response by the end of next week.
+We appreciate your engagement and will follow up promptly once our review is complete.
+Please feel free to reach out to us in the meantime.
+
+Warm regards,
+MSRC
+ES
+ek0ms savi0rAug 2, 2026, 7:15 PM
+
+Hello Mrsc team,
+ES
+ek0ms savi0rAug 2, 2026, 7:16 PM
+
+Hello Mrsc Team, Sounds good thank you. -ek0ms
+ES
+ek0ms savi0rAug 2, 2026, 7:16 PM
+
+Hello Mrsc Team, Sounds good thank you. -ek0ms
+M
+MSRCAug 7, 2026, 3:06 PM
+
+Hello ek0ms savi0r,
+
+Our analysis of your message is taking a little longer, as we are still awaiting input from the teams involved.
+We will follow up with an update as soon as we have one, which we anticipate next week.
+Thank you for your continued patience and partnership.
+Please treat all information related to this report as confidential following our Coordinated Vulnerability Disclosure Policy: https://www.microsoft.com/en-us/msrc/cvd …
+See more
+ES
+ek0ms savi0rAug 13, 2026, 4:58 PM
+
+Hello Mrsc,
+ES
+ek0ms savi0rAug 13, 2026, 4:59 PM
+
+Hello Mrsc, thank you I await your teams update.
+M
+MSRCAug 13, 2026, 5:03 PM
+
+Thank you for contacting us. We are reviewing your report and will provide an update once we have determined the next steps.
+
+This message was generated using automation. If you need additional help, please reply and our team will assist.
+M
+MSRCAug 17, 2026, 7:51 PM
+
+Hello ek0ms savi0r,
+
+Thank you for the additional questions. To confirm our final position on this submission:
+This is assessed as a security issue of Low severity (Information Disclosure). It has also been resolved as a duplicate of a previously reported case, under which any remediation is tracked.
+
+Regarding the further questions on internal telemetry handling, provenance classification, pipeline filtering, and per-event processing: these concern Microsoft's internal architecture and operational detail, which we do not disclose externally. Our severity determination reflects Microsoft's internal review of the reported behavior and is final.
+
+As such, this case is now closed.
+
+We appreciate your report and your engagement with MSRC. We look forward to your next report!
+
+Thanks,
+MSRC
+See less
+Case status
+Complete
+
+This case is closed. Review the Activity feed for details about the outcome.
+
+Last updated Aug 17, 2026
+Report information
+Submission number
+VULN-200045
+Case number
+125992
+Bounty
+—
+Security impact
+Other
+Reported product
+
+    Azure
+        Component name: OneCollector Telemetry Pipeline (1DS)
+        Component version: 1DS-Web-JS-3.2.6 – SDK version seen in requests
+
+External tracking ID
+ChurchofMalwre
+Feedback
+
+Provide feedback
+Your Privacy Choices
+Consumer Health Privacy
+Privacy & Cookies

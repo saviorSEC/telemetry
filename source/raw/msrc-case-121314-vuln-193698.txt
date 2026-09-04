@@ -1,0 +1,552 @@
+
+Microsoft
+
+Systemic Information Disclosure and Unauthenticated Telemetry Injection in Microsoft Power BI / Fabric Gateway Infrastructure
+Systemic Information Disclosure and Unauthenticated Telemetry Injection in Microsoft Power BI / Fabric Gateway Infrastructure
+
+VULN-193698
+
+This case is now closed. See the activity feed for resolution details. Please reply on this case only if you have new information or questions about an upcoming disclosure.
+
+final_complete_report.txt was uploaded
+Jun 6, 2026, 7:54 PM
+
+bundle.js was uploaded
+Jun 6, 2026, 7:55 PM
+
+api-surface.md was uploaded
+Jun 6, 2026, 7:56 PM
+
+endpoints.md was uploaded
+Jun 6, 2026, 7:56 PM
+
+microservices.md was uploaded
+Jun 6, 2026, 7:56 PM
+
+msft-pbi-gold.md was uploaded
+Jun 6, 2026, 7:57 PM
+
+oauth-flows.md was uploaded
+Jun 6, 2026, 7:57 PM
+
+sovereign-clouds.md was uploaded
+Jun 6, 2026, 7:58 PM
+
+telemetry-keys.md was uploaded
+Jun 6, 2026, 7:58 PM
+
+gatewayadminportal.azure.cn.txt was uploaded
+Jun 6, 2026, 7:59 PM
+
+internal_networkranges_cn.txt was uploaded
+Jun 6, 2026, 7:59 PM
+
+china_portal_urls.txt was uploaded
+Jun 6, 2026, 8:00 PM
+
+us_cloud.txt was uploaded
+Jun 6, 2026, 8:00 PM
+
+all_domains.txt was uploaded
+Jun 6, 2026, 8:00 PM
+
+globalize.culture.en-US.4f22df3a747a4b08eecd.js.js was uploaded
+Jun 6, 2026, 8:05 PM
+
+teamsTelemetry.bundle.min.98e1b3184ed815283328.js.js was uploaded
+Jun 6, 2026, 8:05 PM
+
+dogfood_atom_feed.xml was uploaded
+Jun 6, 2026, 8:07 PM
+
+dogfood_feed.xml was uploaded
+Jun 6, 2026, 8:07 PM
+
+staging_feed.xml was uploaded
+Jun 6, 2026, 8:07 PM
+
+canary_feed.xml was uploaded
+Jun 6, 2026, 8:07 PM
+
+all_guids.txt was uploaded
+Jun 6, 2026, 8:08 PM
+
+tenant_check.txt was uploaded
+Jun 6, 2026, 8:08 PM
+
+all_scripts.txt was uploaded
+Jun 6, 2026, 8:08 PM
+
+urls.txt was uploaded
+Jun 6, 2026, 8:23 PM
+S
+Submitter created this report.
+Jun 6, 2026, 8:32 PM
+
+Description
+Reproduction steps
+Steps to Reproduce
+
+Step 1: Access Gateway Admin Portal JavaScript Bundles
+
+Navigate to any of the following gateway admin portal URLs in a web browser or using curl:
+
+https://gatewayadminportal.azure.com
+
+https://gatewayadminportal-devint.azure.com
+
+https://gatewayadminportal-ppe.azure.com
+
+https://gatewayadminportal-msit.azure.com
+
+https://gatewayadminportal-test.azure.com
+
+https://gatewayadminportal-tip.azure.com
+
+https://gatewayadminportal-tip2.azure.com
+
+https://gatewayadminportal-high.azure.us
+
+https://gatewayadminportal-mil.azure.us
+
+https://gatewayadminportal-canaryhigh.azure.us
+
+https://gatewayadminportal-gov.azure.us
+
+https://gatewayadminportal.azure.cn
+
+Execute the following command to confirm the localization file is accessible:
+
+curl -s -o /dev/null -w "%{http_code}\n" "https://gatewayadminportal.azure.com/localization/ClientStrings.en-US.js"
+
+Expected result: HTTP 200
+
+Step 2: Download Source Map for Full Code Decompilation
+
+Execute the following commands to download the production bundle and source map:
+
+curl -s -o bundle.js "https://gatewayadminportal-devint.azure.com/static/js/bundle.js"
+
+curl -s -o bundle.js.map "https://gatewayadminportal-devint.azure.com/static/js/bundle.js.map"
+
+Expected result: bundle.js is approximately 4.2MB. bundle.js.map is approximately 16.1MB and contains the complete TypeScript source map.
+
+Step 3: Extract Internal IP Ranges from US Gov High Localization File
+
+Execute the following command:
+
+curl -sk "https://gatewayadminportal-high.azure.us/localization/ClientStrings.en-US.js" | grep -oE '10.[0-9]+.[0-9]+.[0-9]+/[0-9]+'
+
+Expected result: 10.240.0.0/16 and 10.224.0.0/12 are displayed.
+
+Step 4: Confirm Unauthenticated Telemetry Injection
+
+Execute the following curl command using any of the confirmed Application Insights keys:
+
+curl -X POST "https://eastus-8.in.applicationinsights.azure.com/v2.1/track" -H "Content-Type: application/json" -d '{"name":"Microsoft.ApplicationInsights.Event","time":"2026-06-06T20:00:00Z","iKey":"6a66a822-429e-49e0-951f-dbba255ac842","tags":{"ai.device.id":"recon"},"data":{"baseType":"EventData","baseData":{"ver":2,"name":"ExternalProbe"}}}'
+
+Expected result: JSON response containing "itemsReceived":1,"itemsAccepted":1,"errors":[]
+
+Repeat step 4 with the following additional instrumentation keys, each returns the same expected result:
+
+e3524ec5-ee88-4933-a91e-4d16e385ef93
+
+e43fee4d-90d5-4c2a-a681-cffdd604ad5c
+
+433d8c1b-e63d-4935-8917-fbb39ecb7b51
+
+Step 5: Generate OAuth Device Code for Microsoft Corporate Tenant
+
+Execute the following command:
+
+curl -X POST "https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/oauth2/v2.0/devicecode" -d "client_id=1950a258-227b-4e31-a9cf-717495945fc2" -d "scope=https://app.visualstudio.com/.default"
+
+Expected result: JSON response containing "user_code","device_code","verification_uri":"https://login.microsoft.com/device"
+
+Repeat step 5 with the following additional client ID:
+
+curl -X POST "https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/oauth2/v2.0/devicecode" -d "client_id=065d9450-1e87-434e-ac2f-69af271549ed" -d "scope=https://admin.powerplatform.microsoft.com/.default"
+
+Expected result: JSON response containing "user_code","device_code","verification_uri":"https://login.microsoft.com/device"
+
+Step 6: Access Internal Power BI Deployments
+
+Navigate to any of the following URLs or execute curl commands:
+
+https://edog.analysis-df.windows.net
+
+https://powerbi-df.analysis-df.windows.net
+
+https://powerbi-wow-int3.analysis-df.windows.net
+
+https://daily.powerbi.com
+
+https://dxt.powerbi.com
+
+https://msit.powerbi.com
+
+Execute: curl -s -o /dev/null -w "%{http_code}\n" "https://edog.analysis-df.windows.net/"
+
+Expected result: HTTP 200. The page loads JavaScript bundles from preprod.content.powerapps.com/resource/powerbiwfe/ similar to the gateway portals.
+
+Step 7: Enumerate Service Bus Queues
+
+Execute the following commands:
+
+curl -s -o /dev/null -w "%{http_code}\n" "https://dogfood.servicebus.windows.net/powerbi"
+
+curl -s -o /dev/null -w "%{http_code}\n" "https://dogfood.servicebus.windows.net/fabric"
+
+curl -s -o /dev/null -w "%{http_code}\n" "https://dogfood.servicebus.windows.net/gateway"
+
+curl -s -o /dev/null -w "%{http_code}\n" "https://dogfood.servicebus.windows.net/gatewayadmin"
+
+curl -s -o /dev/null -w "%{http_code}\n" "https://dogfood.servicebus.windows.net/fabricapi"
+
+Expected result: HTTP 401 for each queue name, confirming the queues exist and require authorization. Repeat with canary.servicebus.windows.net and staging.servicebus.windows.net.
+
+Step 8: Access Power Platform Admin Center Configuration
+
+Navigate to https://admin.powerplatform.microsoft.com/ and view page source.
+
+Search for window._ppuxConfig.
+
+Expected result: The full runtime configuration is displayed including aadClientId 065d9450-1e87-434e-ac2f-69af271549ed, region: prod, geo: US, and portalVersionedEndpoint URLs.
+
+All steps can be executed from any external machine with internet access. No authentication, cookies, or special headers are required. All endpoints are publicly accessible Microsoft-owned infrastructure.
+Description
+Vulnerability Description
+
+During external reconnaissance of Microsoft Power BI and Fabric infrastructure, the researcher discovered critical systemic security exposures across all gateway admin portals and internal deployments, plus unauthenticated telemetry injection capabilities.
+
+Summary of Findings:
+
+    All 12 gateway admin portals across global, pre-production, test, MSIT, TIP, US Government High, US Government Mil, US Government Canary High, and China (Mooncake) clouds expose identical JavaScript bundles and source maps containing complete TypeScript source code of the Gateway Admin Portal application.
+
+    Six internal Power BI deployments (edog.analysis-df.windows.net, powerbi-df.analysis-df.windows.net, powerbi-wow-int3.analysis-df.windows.net, daily.powerbi.com, dxt.powerbi.com, msit.powerbi.com) expose the same JavaScript bundles, leaking internal Power BI application code from development, test, and MSIT environments.
+
+    The source map file (bundle.js.map, 16,174,111 bytes) remains publicly accessible post-disclosure and has been fully decompiled, revealing 1,390 source files including internal mock frameworks, Azure AD role GUIDs, hardcoded test data, internal IP ranges, and Microsoft internal DevOps repository URLs.
+
+    Four Application Insights instrumentation keys accept unauthenticated POST requests to eastus-8.in.applicationinsights.azure.com/v2.1/track, allowing arbitrary telemetry injection into Microsoft's internal monitoring systems. Live payloads returned itemsAccepted:1.
+
+    The US Government High cloud portal serves a 113KB Microsoft Authenticode-signed localization file containing 1,200+ internal UI strings, 55+ DMTS error codes, and the internal IP ranges 10.240.0.0/16 and 10.224.0.0/12.
+
+    Three Service Bus instances (dogfood.servicebus.windows.net, canary.servicebus.windows.net, staging.servicebus.windows.net) return public Atom feeds. Seventeen queue names were enumerated, all returning HTTP 401 confirming authenticated resources exist.
+
+    Two OAuth device code flows work against Microsoft's corporate tenant (72f988bf-86f1-41af-91ab-2d7cd011db47). An attacker can generate a device code, trick a Microsoft employee into authenticating, and capture a token granting access to internal DevOps (powerbi.visualstudio.com) and Power Platform Admin Center.
+
+    The Power Platform Admin Center exposes its full runtime configuration in HTML source, including client ID 065d9450-1e87-434e-ac2f-69af271549ed and complete OneCollector telemetry endpoint mappings for 12 sovereign and government environments.
+
+The exposed data includes: TypeScript source code (1,390 files), internal mock framework with isTenantAdministrator toggle, Azure AD role object IDs, Microsoft tenant IDs, internal IP ranges (10.240.0.0/16, 10.224.0.0/12), DMTS error codes (55+), OpenAI integration error handling, internal DevOps repository URLs (msazure.visualstudio.com, powerbi.visualstudio.com), specific work items (Bug 732493, WI 795609, PR 831855), internal developer names, hardcoded test credentials (test@contoso.com, mock tenant 4d87d9fc-1a15-46db-aea1-e432cb0179ba), and 12 feature flags revealing upcoming functionality (SAP CDC connector, OneLake SSO, soft delete, VNet V2 API).
+
+No authentication is required to access any of these JavaScript bundles, source maps, localization files, or telemetry injection endpoints. An attacker can download complete application source code from any of the 12 gateway portals or 6 internal Power BI deployments without any credentials. An attacker can inject telemetry events into Microsoft's internal Application Insights instances using any of the four confirmed keys. An attacker can generate device codes for OAuth flows and phish Microsoft employees to obtain tokens with elevated privileges.
+
+These exposures represent a systemic design flaw affecting all Power BI / Fabric environments regardless of classification (production, test, sovereign, government, internal dogfood). The source map remains accessible as of June 7, 2026, despite the researcher's initial MSRC submission (VULN-193676) on June 6, 2026.
+
+M
+MSRCAuto-notification Jun 6, 2026, 8:46 PM
+
+Hello,
+Thank you for contacting the Microsoft Security Response Center (MSRC).
+Your report has been received, and you should receive a follow-up message from the case manager once your case has been fully reviewed. You can read more on what to expect when working with us on the MSRC website.  …
+See more
+ES
+ek0ms savi0rJun 6, 2026, 9:47 PM
+
+Subject: Additional critical findings discovered
+
+Dear MSRC Team,
+
+Further analysis of the source map (still publicly accessible) has revealed significant additional exposures not included in the original submission. These findings materially increase the scope and severity.
+
+Newly discovered assets and data leaks: …
+See more
+M
+MSRCJun 8, 2026, 9:57 AM
+
+Hello,
+
+Please provide a video of the potential vulnerability as you have described. The report submitted is a little confusing - there is mention of PowerBI, Azure, and other products so it isn't clear which product is being reported.
+
+Please upload the video through your portal. I will keep this open for 24-hours. …
+See more
+
+for_microsoft.mp4 was uploaded
+Jun 8, 2026, 5:02 PM
+ES
+ek0ms savi0rJun 8, 2026, 5:07 PM
+
+Dear Jim,
+
+Thank you for your response. I understand the report covers multiple products, which may have caused confusion. Let me clarify:
+
+Primary product: Azure / Power BI (specifically the Gateway Admin Portal and Fabric microservices). The other products (Azure DevOps, Power Platform Admin Center, Application Insights, Service Bus) are affected because they share authentication, telemetry, or configuration with the Power BI ecosystem. …
+See more
+
+run.ps1 was uploaded
+Jun 8, 2026, 6:34 PM
+
+prod.mp4 was uploaded
+Jun 8, 2026, 6:34 PM
+
+prod.mp4 was uploaded
+Jun 8, 2026, 6:34 PM
+ES
+ek0ms savi0rJun 8, 2026, 6:35 PM
+
+Subject: Additional live demonstration – script and video (production endpoints)
+
+Dear Jim,
+
+I cannot edit my previous message, so I am adding this as a new comment.
+
+Attached are:
+
+    run.ps1 – a PowerShell script that reproduces the three most critical findings against LIVE PRODUCTION endpoints (no dev/test). …
+
+See more
+M
+MSRCAuto-notification Jun 9, 2026, 6:58 AM
+
+Thank you for contacting the Microsoft Security Response Center (MSRC). I've opened a case for this issue:
+MSRC Case 121314
+ChurchofMalware
+Please only respond or communicate with us using the researcher portal. Also, please keep the details of this case confidential during our investigation.  …
+See more
+M
+MSRCJun 9, 2026, 6:59 AM
+
+Hello,
+
+Thank you for the update and I progressed this into a case.
+
+Kind regards,
+
+MSRC
+ES
+ek0ms savi0rJun 24, 2026, 4:56 PM
+
+Hi team,
+
+I'm following up on the telemetry injection vulnerability I reported on June 6, 2026. I've been periodically testing to see if the issue was addressed, and as of June 24, the /v2.1/track endpoint still accepts unauthenticated telemetry across multiple regions.
+
+During continued testing, I also discovered that Microsoft's Application Insights JavaScript SDK source map is publicly accessible at: …
+See more
+M
+MSRCJun 25, 2026, 6:50 AM
+
+Hello,
+
+Thank you for your report and for working with us to help protect customers. We have assessed your report as Low Severity and a 12/03/2026 resolve by date. I still need confirmation of the severity from our product group before I can progress this case.
+
+The reported exposure consists solely of operational metadata and client-side implementation details. No customer data, authentication material, or server-side secrets are disclosed.
+
+Claims regarding partner tenant IDs embedded in source maps are unsupported, as only mock tenant identifiers were observed. Similarly, the alleged telemetry injection impact is overstated—Application Insights instrumentation keys (iKeys) are not secrets and are not intended to provide authentication or access control per Microsoft documentation - https://learn.microsoft.com/en-us/azure/azure-monitor/app/connection-strings
+
+The device code phishing scenario aligns with standard OAuth 2.0 authorization flows, which are a widely adopted industry-standard framework for delegated authorization rather than a vulnerability condition https://learn.microsoft.com/en-us/azure/api-management/authentication-authorization-overview
+
+The following observations reflect by-design behavior or trivial exposure, not security issues:
+• Application Insights telemetry injection via instrumentation keys
+• OAuth device code / authorization flow generation
+• Service Bus queue name enumeration patterns in unauthenticated/401 contexts
+• Power Platform Admin Center configuration data present in client-side page source
+
+Additionally, the disclosed content falls under operational metadata, which is commonly used for governance, automation, and resource management rather than representing sensitive data (for example, metadata used to support operational tracking and classification in Azure environments, as described in Define your tagging strategy).https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-tagging
+
+While this information may provide limited reconnaissance value that could support future attack development, it does not result in a security boundary bypass or expose sensitive data. The observed behaviors are consistent with expected platform functionality and publicly documented design characteristics.
+
+Thank you again for partnering with us to help keep customers secure.
+
+Best regards,
+Microsoft Security Response Center (MSRC)
+See less
+ES
+ek0ms savi0rJun 25, 2026, 9:40 AM
+
+Hi team,
+
+Thank you for the detailed assessment. I appreciate the clarification on iKeys being non-secret per Microsoft documentation.
+
+However, I want to clarify the core security concern:
+
+The vulnerability is not that iKeys are exposed. The vulnerability is that the ingestion endpoint (/v2.1/track) accepts unauthenticated telemetry from any source with a valid iKey. …
+See more
+ES
+ek0ms savi0rJul 6, 2026, 9:10 PM
+
+Dear MSRC Team,
+
+I am writing to inform you that during continued research into the telemetry injection vulnerabilities reported in VULN-193698, we have identified a separate but related vulnerability affecting the OneCollector telemetry pipeline.
+
+We have submitted this as a new case: VULN-200045
+Summary of New Finding …
+See more
+ES
+ek0ms savi0rJul 17, 2026, 10:53 AM
+
+Hello MSRC Team,
+
+I am requesting a substantive status update regarding VULN-193698 / MSRC Case 121314.
+
+Microsoft’s last update was provided on June 25, 2026. That message stated:
+
+> “We have assessed your report as Low Severity and a 12/03/2026 resolve by date. I still need confirmation of the severity from our product group before I can progress this case.” …
+See more
+M
+MSRCJul 17, 2026, 12:44 PM
+
+Hello,
+
+Thank you for informing us of your intent to disclose this issue. We are working through a backlog of cases due to a large influx of submissions therefore the delay in response. I still need for the product engineering group to make their assessment on this case. December 3, 2026 is the SLA for this product and severity - which is currently Low. Are you willing to work with us on your disclosure? …
+See more
+M
+MSRCJul 17, 2026, 12:53 PM
+
+Hello,
+
+For report - VULN-200045 please reach out to the Security Assuraqnce Engineer - SAE for that case.
+
+Kind regards,
+
+MSRC
+ES
+ek0ms savi0rJul 17, 2026, 2:23 PM
+
+Hello MSRC Team,
+
+No, I am not agreeing to extend disclosure through December 3, 2026.
+
+The report was submitted on June 6, 2026. My 90-day disclosure period ends September 4, 2026, and the research is scheduled for publication on September 5, 2026.
+
+Microsoft’s December 3 date is an internal SLA. It is not a publication embargo that I agreed to, and I will not treat it as one. …
+See more
+M
+MSRCJul 20, 2026, 6:11 AM
+
+Hello,
+
+Please reach out to the security assurance engineer for each respective case - VULN-200045 and VULN-202543. I will update you when I have the confirmation of the severity from the product engineering group on this issue.
+
+Are you willing to work with us on your pending public disclosure for this case? …
+See more
+ES
+ek0ms savi0rJul 22, 2026, 12:24 AM
+
+Hello MSRC Team,
+
+Your question—“Are you willing to work with us on your pending public disclosure?”—is too vague for me to answer as written.
+
+I am willing to discuss a concrete coordination proposal. That willingness does not constitute agreement to:
+
+    Extend the September 5, 2026 publication date;
+    Accept an embargo; …
+
+See more
+M
+MSRCJul 28, 2026, 8:40 AM
+
+Hello,
+
+Can I ask you please to update the disclosure date in your MSRC portal?
+
+Kind regards,
+
+MSRC
+ES
+ek0ms savi0rAssessment Jul 29, 2026, 10:51 AM
+
+
+Subject: CarMax Third-Party Validation, Required Technical Answers, and September 5 Disclosure — VULN-193698
+
+Hello MSRC Team,
+CarMax-associated deployment confirms third-party applicability
+
+We have now reproduced the unauthenticated Application Insights ingestion behavior against a real third-party deployment associated with CarMax. …
+See more
+M
+MSRCEmail communication Aug 12, 2026, 11:03 AM
+
+Subject: RE: MSRC Case 121314 ChurchofMalware CRM:0022138948
+Hello,
+
+Thank you for your report to the Microsoft Security Response Center (MSRC). We appreciate the time and effort you took to help protect Microsoft and our customers.
+After careful review, this case was assessed as a low severity and I can confirm that this has been fixed. …
+See more
+ES
+ek0ms savi0rAssessment Aug 13, 2026, 4:09 PM
+
+Subject: Clarification Required: What Exactly Was Fixed in MSRC Case 121314?
+
+Hello MSRC Team,
+
+I received your August 12 message stating:
+
+“After careful review, this case was assessed as a low severity and I can confirm that this has been fixed.”
+
+That statement requires clarification because MSRC Case 121314 contains multiple distinct findings, and your message does not identify what Microsoft actually remediated. …
+See more
+M
+MSRCAssessment Aug 14, 2026, 6:17 AM
+
+Hello,
+
+I will try and get you an answer soonest.
+
+Kind regards,
+
+MSRC
+M
+MSRCAssessment Aug 25, 2026, 6:44 AM
+
+Hello,
+
+Responses to your questions.
+
+1. Which findings were fixed?
+The Gateway Admin Portal source-map exposure was fixed, and customer tenant names embedded in feature-flag comments were removed. These changes address findings 1–3.
+
+    Was the source map removed or access-controlled?
+    It was removed at build time. As of right now, production builds no longer generate the source-map artifacts. …
+
+See more
+Case status
+Complete
+
+This case is closed. Review the Activity feed for details about the outcome.
+
+Last updated Aug 25, 2026
+Report information
+Submission number
+VULN-193698
+Case number
+121314
+Bounty
+—
+Security impact
+Information Disclosure
+Reported products
+
+    Azure
+        Component name: Power BI Gateway Admin Portal, Fabric microservices
+        Component version: 13.0.28508.70 (for edog/daily), 13.0.28506.362 (dxt), 13.0.28505.384 (msit)
+    Azure DevOps
+        Component name: OAuth device code flow for Power BI test app
+    Other / Unknown
+        Component name: Admin portal configuration
+    Other / Unknown
+        Component name: Telemetry ingestion endpoint
+    Azure
+        Component name: Service Bus instances (dogfood, canary, staging)
+    Graph Services
+        Component name: Graph API PPE endpoint
+
+External tracking ID
+ChurchofMalware
+CWE numbers
+CWE-200, CWE-306, CWE-532
+Feedback
+
+Provide feedback
+Your Privacy Choices
+Consumer Health Privacy
+Privacy & Cookies

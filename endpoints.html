@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>Telemetry Triage — Endpoints &amp; Vendor Dispositions</title>
+<meta name="description" content="Where to find the telemetry endpoints we triaged, and how each vendor disposition went — Church of Malware coordinated disclosure.">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<nav class="site-nav"><div class="container">
+  <a href="index.html">Home</a>
+  <a href="whitepaper.html">Whitepaper</a>
+  <a href="endpoints.html">Endpoints</a>
+  <a href="galaxy.html">Galaxy</a>
+  <a href="threat-map.html">Threat Map</a>
+  <a href="master-report.html">Master Report</a>
+  <a href="vrp-correspondence.html">VRP</a>
+  <a href="legal-annex.html">Legal</a>
+</div></nav>
+
+<header class="site-header">
+  <div class="container">
+    <div class="kicker">Church of Malware · Triage Data</div>
+    <h1>Endpoints &amp; Vendor Dispositions</h1>
+    <p class="subtitle">Every telemetry family we triaged, where its ingestion endpoints live,
+    what the ingestion boundary observed, and where each vendor disposition landed.</p>
+    <div class="badge-row"><span class="badge badge-warn">Updated 2026-09-04</span></div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="card" id="claim-note">
+    <p class="note"><strong>Claim boundary:</strong> observed responses (HTTP 200 / 204 /
+    acceptance counters) establish <em>ingestion receipt and parsing</em>. They do not by
+    themselves establish retention, trusted attribution, or downstream use. Vendor
+    dispositions are reproduced from our correspondence records.</p>
+  </div>
+  <div id="endpoints-root"><p class="muted">Loading triage data…</p></div>
+</main>
+
+<footer class="site-footer"><div class="container">
+  <p>© 2026 Church of Malware · <a href="https://churchofmalware.org">churchofmalware.org</a></p>
+  <p class="note">Public-interest disclosure. No exploit code; no instructions enabling harm. TLP:CLEAR.</p>
+</div></footer>
+
+<script>
+fetch('data/triage.json').then(r => r.json()).then(data => {
+  const root = document.getElementById('endpoints-root');
+  root.innerHTML = '';
+  for (const c of data.companies) {
+    const sec = document.createElement('section');
+    sec.className = 'card';
+    sec.id = 'c-' + c.id;
+    let html = `<h2>${c.name}</h2>`;
+    for (const f of c.families) {
+      html += `<h3>${f.name}</h3>`;
+      if (f.notes) html += `<p class="note">${f.notes}</p>`;
+      if (f.endpoints.length) {
+        html += `<table><thead><tr><th>Host</th><th>Path</th><th>Method</th><th>Observed</th></tr></thead><tbody>`;
+        for (const e of f.endpoints) {
+          html += `<tr><td><code>${e.host}</code></td><td><code>${e.path}</code></td><td>${e.method}</td><td>${e.observed}</td></tr>`;
+        }
+        html += '</tbody></table>';
+      }
+      if (f.case) html += `<p class="note"><strong>Case:</strong> ${f.case}</p>`;
+      if (f.status) html += `<p class="note"><strong>Disposition:</strong> ${f.status}</p>`;
+      if (f.claim) html += `<p class="note"><strong>Claim:</strong> ${f.claim}</p>`;
+    }
+    sec.innerHTML = html;
+    root.appendChild(sec);
+  }
+}).catch(e => {
+  document.getElementById('endpoints-root').innerHTML =
+    '<p class="muted">Could not load triage data.</p>';
+});
+</script>
+</body>
+</html>

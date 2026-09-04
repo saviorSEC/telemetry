@@ -1,0 +1,13 @@
+META BUG BOUNTY — disposition (received 2026-07-15, via support.facebook.com)
+
+Verdict: NOT VALID under program scope — "working as intended / outside scope / no clear
+security or privacy impact demonstrated." Meta declined to detail the decision; standard
+re-review invitation extended.
+
+Context: submission covered unauthenticated telemetry ingestion (facebook.com/tr pixel +
+/log + /metrics + Ray-Ban Meta Smart Glasses DAT analytics). Researcher's follow-up report
+was filed under the same report number per program guidance.
+
+Represented on the disclosure site as: submitted; closed as not-qualifying per Meta's
+assessment. No claim of confirmed downstream impact is made — consistent with the
+whitepaper's claim boundaries.

@@ -1,0 +1,334 @@
+{
+ "meta": {
+  "title": "Telemetry Triage \u2014 Endpoints & Vendor Dispositions",
+  "updated": "2026-09-04",
+  "note": "Observed responses are ingestion-boundary facts. They establish receipt and parsing only \u2014 not retention, trusted use, or downstream impact (see whitepaper claim boundaries). Vendor dispositions are reproduced from correspondence."
+ },
+ "companies": [
+  {
+   "id": "microsoft",
+   "name": "Microsoft",
+   "icon": "MS",
+   "families": [
+    {
+     "name": "Application Insights (Azure Monitor)",
+     "endpoints": [
+      {
+       "host": "eastus-8.in.applicationinsights.azure.com",
+       "path": "/v2.1/track",
+       "method": "POST",
+       "observed": "200 \u2014 itemsReceived:1, itemsAccepted:1, errors:[]"
+      }
+     ],
+     "notes": "Unauthenticated envelopes accepted under production instrumentation keys (iKeys). iKeys are documented as non-secret client configuration; the open question is downstream provenance of accepted events.",
+     "case": "VULN-193698 / MSRC Case 121314",
+     "status": "Closed by MSRC \u2014 assessed Low severity; case closed Aug 25, 2026. Source-map exposure fixed (removed at build time); tenant names in feature-flag comments removed. Telemetry-injection element assessed by MSRC as consistent with documented iKey design (not a secret, no auth boundary). RE-VERIFIED 2026-09-04: HTTP 200 itemsAccepted:1 \u2014 still accepting unauthenticated injection (single benign canary).",
+     "claim": "Ingestion acceptance confirmed. Retention/trust classification not independently verifiable from outside. Re-verified post-closure 2026-09-04: ingestion acceptance confirmed again."
+    },
+    {
+     "name": "OneCollector / 1DS",
+     "endpoints": [
+      {
+       "host": "browser.events.data.microsoft.com",
+       "path": "/",
+       "method": "POST",
+       "observed": "204 No Content"
+      },
+      {
+       "host": "vortex.data.microsoft.com",
+       "path": "/",
+       "method": "POST",
+       "observed": "204 No Content"
+      },
+      {
+       "host": "7 regional OneCollector endpoints",
+       "path": "/",
+       "method": "POST",
+       "observed": "204 No Content"
+      }
+     ],
+     "notes": "1DS pipeline feeds Windows/Office/Teams/Xbox telemetry. Events accepted without producer authentication.",
+     "case": "VULN-200045 (related)",
+     "status": "Reported to MSRC as separate case; security-assurance-engineer follow-up requested per correspondence. RE-VERIFIED 2026-09-04: HTTP 401 InvalidTenantToken on July payload shape \u2014 behavior changed; fixed-vs-format-drift undetermined (open question).",
+     "claim": "Ingestion acceptance confirmed (204). Downstream handling per Microsoft = backend validation/filtering; not externally verifiable."
+    },
+    {
+     "name": "Gateway Admin Portal source maps (informational exposure, now fixed)",
+     "endpoints": [
+      {
+       "host": "gatewayadminportal*.azure.com / .azure.us / .azure.cn (12 portals)",
+       "path": "/static/js/bundle.js.map",
+       "method": "GET",
+       "observed": "200 \u2014 16MB source map, 1,390 TS files"
+      }
+     ],
+     "notes": "Complete TypeScript source maps for Power BI Gateway Admin Portal across global, pre-prod, test, MSIT, TIP, US Gov High/Mil/CanaryHigh and China clouds. Internal IP ranges (10.240.0.0/16, 10.224.0.0/12) in US Gov High localization file.",
+     "case": "VULN-193698 (findings 1-3)",
+     "status": "FIXED by Microsoft \u2014 production builds no longer generate source maps; tenant names removed (Aug 25, 2026 confirmation).",
+     "claim": "Exposure confirmed pre-fix; remediation confirmed by vendor."
+    }
+   ]
+  },
+  {
+   "id": "google",
+   "name": "Google / Android",
+   "icon": "G",
+   "families": [
+    {
+     "name": "Android Check-In",
+     "endpoints": [
+      {
+       "host": "android.googleapis.com",
+       "path": "/checkin",
+       "method": "POST",
+       "observed": "200 \u2014 stats_ok:true"
+      }
+     ],
+     "notes": "Bootstrap check-in accepts unauthenticated device-identity-like fields (android_id, security_token, device_info) with no proof of producer control. Corrected VRP report scoped strictly to the provenance boundary and requests a canary trace.",
+     "case": "VRP (related prior: 533164589)",
+     "status": "Google position: unauthenticated bootstrap intentional; stats_ok = received/parsed. Server-side segregation asserted by Google; external verification of full trace not yet provided. Corrected report requests concrete canary disposition.",
+     "claim": "Ingestion acceptance confirmed. Any Waymo/BigQuery/ML claim was withdrawn from the formal report as not externally verifiable."
+    },
+    {
+     "name": "Google Analytics 4",
+     "endpoints": [
+      {
+       "host": "www.google-analytics.com",
+       "path": "/g/collect",
+       "method": "POST",
+       "observed": "204 No Content"
+      }
+     ],
+     "notes": "Measurement Protocol accepts unauthenticated events for GA4 properties.",
+     "case": "\u2014",
+     "status": "Documented ingestion behavior; analytics-class.",
+     "claim": "Ingestion acceptance confirmed."
+    }
+   ]
+  },
+  {
+   "id": "apple",
+   "name": "Apple",
+   "icon": "",
+   "families": [
+    {
+     "name": "iCloud metrics + diagnostics",
+     "endpoints": [
+      {
+       "host": "metrics.icloud.com",
+       "path": "/metrics",
+       "method": "POST",
+       "observed": "200 OK"
+      },
+      {
+       "host": "diagnostics.apple.com",
+       "path": "/telemetry",
+       "method": "POST",
+       "observed": "200 OK"
+      }
+     ],
+     "notes": "Metrics/diagnostics endpoints accept unauthenticated JSON, text, and binary payloads.",
+     "case": "Apple Security Bounty \u2014 OE110716814418",
+     "status": "Under review per correspondence.",
+     "claim": "Ingestion acceptance confirmed."
+    }
+   ]
+  },
+  {
+   "id": "meta",
+   "name": "Meta",
+   "icon": "",
+   "families": [
+    {
+     "name": "Pixel / internal log & metrics / wearables DAT",
+     "endpoints": [
+      {
+       "host": "www.facebook.com",
+       "path": "/tr",
+       "method": "GET/POST",
+       "observed": "200 OK"
+      },
+      {
+       "host": "www.facebook.com",
+       "path": "/log",
+       "method": "POST",
+       "observed": "200 OK"
+      },
+      {
+       "host": "www.facebook.com",
+       "path": "/metrics",
+       "method": "POST",
+       "observed": "200 OK"
+      },
+      {
+       "host": "Ray-Ban Meta Smart Glasses DAT",
+       "path": "custom event ingestion (5 app IDs)",
+       "method": "POST",
+       "observed": "200 OK"
+      }
+     ],
+     "notes": "Pixel conversion + internal log/metrics endpoints accept unauthenticated events; wearables DAT accepts glasses telemetry event types.",
+     "case": "Meta Bug Bounty \u2014 122102502879389843",
+     "status": "Initially closed as intended behavior; follow-up report submitted on same number per researcher correspondence.",
+     "claim": "Ingestion acceptance confirmed."
+    }
+   ]
+  },
+  {
+   "id": "linkedin",
+   "name": "LinkedIn",
+   "icon": "",
+   "families": [
+    {
+     "name": "Ad conversion & analytics telemetry",
+     "endpoints": [
+      {
+       "host": "px.ads.linkedin.com",
+       "path": "13 endpoints (/collect, /track, /convert, /pixel, /event\u2026)",
+       "method": "GET/POST",
+       "observed": "200 OK"
+      },
+      {
+       "host": "dc.ads.linkedin.com",
+       "path": "13 endpoints",
+       "method": "GET/POST",
+       "observed": "200 OK"
+      },
+      {
+       "host": "ads.linkedin.com",
+       "path": "13 endpoints",
+       "method": "GET/POST",
+       "observed": "200 OK"
+      }
+     ],
+     "notes": "39+ endpoints; x-li-uuid event IDs and x-li-fabric prod markers observed in responses.",
+     "case": "\u2014",
+     "status": "Submitted to security@linkedin.com per correspondence.",
+     "claim": "Ingestion acceptance confirmed."
+    }
+   ]
+  },
+  {
+   "id": "baidu",
+   "name": "Baidu",
+   "icon": "",
+   "families": [
+    {
+     "name": "Baidu Analytics / click tracking",
+     "endpoints": [
+      {
+       "host": "hm.baidu.com",
+       "path": "/hm.gif",
+       "method": "GET",
+       "observed": "200 (43-byte GIF)"
+      },
+      {
+       "host": "nsclick.baidu.com",
+       "path": "t/click/u/v/s/d .gif family (7)",
+       "method": "GET",
+       "observed": "200 OK"
+      }
+     ],
+     "notes": "Tracking pixel family accepts unauthenticated events.",
+     "case": "\u2014",
+     "status": "Reported (BSRC international) per correspondence.",
+     "claim": "Ingestion acceptance confirmed."
+    }
+   ]
+  },
+  {
+   "id": "cnzz",
+   "name": "CNZZ / Umeng (Alibaba)",
+   "icon": "",
+   "families": [
+    {
+     "name": "CNZZ analytics tracking",
+     "endpoints": [
+      {
+       "host": "cnzz.mmstat.com",
+       "path": "/",
+       "method": "GET",
+       "observed": "200 (43-byte GIF)"
+      },
+      {
+       "host": "s9.cnzz.com / s4.cnzz.com / s19.cnzz.com",
+       "path": "/z_stat.php",
+       "method": "GET",
+       "observed": "200"
+      }
+     ],
+     "notes": "Tracking pixel family, CORS * observed.",
+     "case": "\u2014",
+     "status": "Reported (Alibaba security) per correspondence.",
+     "claim": "Ingestion acceptance confirmed."
+    }
+   ]
+  },
+  {
+   "id": "tencent",
+   "name": "Tencent",
+   "icon": "",
+   "families": [
+    {
+     "name": "Tencent trace / analytics",
+     "endpoints": [
+      {
+       "host": "h.trace.qq.com",
+       "path": "/kv",
+       "method": "POST/GET",
+       "observed": "200 OK"
+      }
+     ],
+     "notes": "Trace endpoint accepts unauthenticated key/value events.",
+     "case": "\u2014",
+     "status": "Reported (TSRC) per correspondence.",
+     "claim": "Ingestion acceptance confirmed."
+    }
+   ]
+  },
+  {
+   "id": "matomo",
+   "name": "Matomo",
+   "icon": "",
+   "families": [
+    {
+     "name": "Matomo tracking (self-hosted class)",
+     "endpoints": [
+      {
+       "host": "demo.matomo.org (and self-hosted instances)",
+       "path": "/matomo.php",
+       "method": "GET",
+       "observed": "200 (43-byte GIF)"
+      }
+     ],
+     "notes": "Default config accepts unauthenticated tracking; class applies to self-hosted instances.",
+     "case": "\u2014",
+     "status": "Reported per correspondence.",
+     "claim": "Ingestion acceptance confirmed."
+    }
+   ]
+  },
+  {
+   "id": "flock",
+   "name": "Flock Safety",
+   "icon": "",
+   "families": [
+    {
+     "name": "Segment-backed analytics",
+     "endpoints": [
+      {
+       "host": "api.segment.io",
+       "path": "/v1/track",
+       "method": "POST",
+       "observed": "200 OK"
+      }
+     ],
+     "notes": "Segment write key exposed in client-side JS bundles enables unauthenticated event submission into first-party analytics pipeline.",
+     "case": "\u2014",
+     "status": "Reported (security@flocksafety.com) per correspondence.",
+     "claim": "Ingestion acceptance confirmed; write key exposure confirmed in client bundle."
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow"><title>Vendor Dossiers — Telemetry Triage</title>
+<meta name="description" content="Per-vendor disclosure dossiers — telemetry injection triage.">
+<link rel="stylesheet" href="assets/css/style.css"></head><body><nav class="site-nav"><div class="container">
+  <a href="index.html">Home</a> <a href="whitepaper.html">Whitepaper</a>
+  <a href="endpoints.html">Endpoints</a> <a href="galaxy.html">Galaxy</a>
+  <a href="threat-map.html">Threat Map</a> <a href="master-report.html">Master Report</a>
+  <a href="dossiers.html">Dossiers</a> <a href="vrp-correspondence.html">VRP</a> <a href="legal-annex.html">Legal</a>
+</div></nav>
+<header class="site-header"><div class="container">
+<div class="kicker">Church of Malware · Disclosure Records</div>
+<h1>Vendor Dossiers</h1>
+<p class="subtitle">Per-vendor disclosure records: submissions, correspondence, and evidence
+as filed with each vendor / VRP. Redacted of live credentials. Dossiers are reproductions of
+the researcher's filings — see the whitepaper for claim boundaries.</p>
+</div></header><main class="container"><div class="card"><div class="tile" style="margin-bottom:1rem"><h3><span class="dot" style="background:#94a3b8"></span> <a href="dossier-apple.html">Apple</a></h3><p class="note">apple — report_details.md · apple — submission.md</p></div><div class="tile" style="margin-bottom:1rem"><h3><span class="dot" style="background:#ffb020"></span> <a href="dossier-google.html">Google / Android</a></h3><p class="note">google — Android VRP Report.md · google — my_reply.md · google — whocanexploit.md</p></div><div class="tile" style="margin-bottom:1rem"><h3><span class="dot" style="background:#00d0ff"></span> <a href="dossier-linkedin.html">LinkedIn</a></h3><p class="note">linkedin — linkedin_report.md · linkedin — report.md</p></div><div class="tile" style="margin-bottom:1rem"><h3><span class="dot" style="background:#f472b6"></span> <a href="dossier-flock.html">Flock Safety</a></h3><p class="note">flock — flock_segment_report.md</p></div><div class="tile" style="margin-bottom:1rem"><h3><span class="dot" style="background:#a78bfa"></span> <a href="dossier-tencent.html">Tencent</a></h3><p class="note">tencent — tencent.md</p></div><div class="tile" style="margin-bottom:1rem"><h3><span class="dot" style="background:#ff9900"></span> <a href="dossier-amazon.html">Amazon</a></h3><p class="note">amazon — amazon_vrp.md · amazon — next_steps.md</p></div><div class="tile" style="margin-bottom:1rem"><h3><span class="dot" style="background:#7c5cff"></span> <a href="dossier-meta.html">Meta</a></h3><p class="note">meta — meta_2ndreport_communications.md · meta — meta_wearables_report.md · meta — submited_report.md</p></div><div class="tile" style="margin-bottom:1rem"><h3><span class="dot" style="background:#00e5ff"></span> <a href="dossier-microsoft.html">Microsoft (MSRC)</a></h3><p class="note">microsoft — both_0day.md</p></div></div><div class="card"><h2>Tested — not vulnerable (negative results)</h2><p>tested_confirmedNOT_vuln.md</p>
+<div class="doc-title">tested and not vuln to unauth tele injection and or needs futher testing</div>
+<ul>
+<li>
+<p>tesla locked down with several layers of 0auth</p>
+</li>
+<li>
+<p>Oracle - locked down with several layers of 0auth</p>
+</li>
+<li>
+<p>ICS systems locked down for the most part except PI Web API, tested 7 ICS endpoints //inconclusive for now</p>
+</li>
+<li>
+<p>amazon for now requires protobuf to send unauthenticated telemetry injection payloads - needs further testing // get live protobuf payload, reverse engineer, send protobuf payload. retest.</p>
+</li>
+</ul></div></main><footer class="site-footer"><div class="container"><p>© 2026 Church of Malware · <a href="https://churchofmalware.org">churchofmalware.org</a></p></div></footer></body></html>

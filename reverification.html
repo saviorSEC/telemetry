@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>Re-verification Walkthrough — Telemetry Triage</title>
+<meta name="description" content="Bash walkthrough for re-verifying unauthenticated telemetry injection endpoints — single benign canary per endpoint, claim-bounded.">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<nav class="site-nav"><div class="container">
+  <a href="index.html">Home</a>
+  <a href="whitepaper.html">Whitepaper</a>
+  <a href="trust-crisis.html">Trust Crisis</a>
+  <a href="endpoints.html">Endpoints</a>
+  <a href="galaxy.html">Galaxy</a>
+  <a href="threat-map.html">Threat Map</a>
+  <a href="master-report.html">Master Report</a>
+  <a href="dossiers.html">Dossiers</a>
+  <a href="vrp-correspondence.html">Correspondence</a>
+  <a href="hyperject.html">Hyperject</a>
+  <a href="reverification.html">Reverify</a>
+  <a href="legal-annex.html">Legal</a>
+</div></nav>
+
+<header class="site-header">
+  <div class="container">
+    <div class="kicker">Church of Malware · Method</div>
+    <h1>Re-verification Walkthrough</h1>
+    <p class="subtitle">How the 2026-09-05 disclosure-day sweep was run: one benign canary
+    per endpoint, no bulk, no payload strings. Every check below is the exact shape used —
+    substitute placeholders only with keys you are authorized to test.</p>
+    <div class="badge-row">
+      <span class="badge badge-warn">Results: docs/reverification-2026-09-05.md</span>
+      <span class="badge badge-accent">TLP:CLEAR</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="card">
+    <h2>Rules of the sweep</h2>
+    <ul>
+      <li>One benign synthetic event per endpoint. No bulk, no flooding, no retry loops.</li>
+      <li>No payload strings: no XSS, SQL, command-injection, or path-traversal content was
+      sent. Only a unique harmless canary marker in a custom field.</li>
+      <li>Acceptance response = the ingestion boundary received and parsed the event. It does
+      not prove storage, dashboards, alerts, or AI-training use. Vendors are the only party
+      that can trace final disposition (see the whitepaper's canary-trace request).</li>
+      <li>Keys used were client-side tokens already embedded in public web JavaScript — the
+      documented finding. Do not run these against systems you are not authorized to test.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>1. Application Insights (Microsoft)</h2>
+    <pre><code># one benign canary, no payload strings
+CANARY="CoM-walkthru-$(date +%s)"
+curl -s -X POST "https://eastus-8.in.applicationinsights.azure.com/v2.1/track" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Microsoft.ApplicationInsights.Event",
+    "time": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'",
+    "iKey": "&lt;IKEY&gt;",
+    "tags": {"ai.device.id": "'"$CANARY"'"},
+    "data": {"baseType": "EventData",
+             "baseData": {"ver": 2, "name": "ExternalProbe",
+                          "properties": {"canary": "'"$CANARY"'"}}}
+  }'</code></pre>
+    <p><span class="note">Observed (2026-09-05):</span> <code>HTTP 200</code> with
+    <code>{"itemsReceived":1,"itemsAccepted":1,"errors":[]}</code> for the four Power BI /
+    Fabric keys in the record. CarMax key <code>78f195a3…</code> same; key
+    <code>8384dafb…</code> now returns 400 <code>Invalid instrumentation key</code>
+    (rotated).</p>
+  </section>
+
+  <section class="card">
+    <h2>2. OneCollector / 1DS (Microsoft)</h2>
+    <pre><code>CANARY="CoM-walkthru-$(date +%s)"
+curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+  "https://browser.events.data.microsoft.com/OneCollector/1.0/?cors=true&amp;content-type=application%2Fx-json-stream&amp;client-id=NO_AUTH&amp;client-version=1DS-Web-JS-3.2.6&amp;apikey=&lt;APIKEY&gt;&amp;upload-time=$(date +%s%3N)&amp;w=2&amp;NoResponseBody=true" \
+  -H "Content-Type: text/plain;charset=UTF-8" \
+  -H "Origin: https://login.microsoftonline.com" \
+  -d '{"name":"CoM.Canary","time":"'$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")'","ver":"4.0","iKey":"o:&lt;IKEY&gt;","ext":{},"data":{"canary":"'"$CANARY"'"}}'</code></pre>
+    <p><span class="note">Observed (2026-09-05):</span> <code>HTTP 204</code> on both
+    <code>browser.events</code> and <code>vortex</code> for both keys in the record —
+    accepted with <code>client-id=NO_AUTH</code>. (The 09-04 "401" in earlier notes was a
+    truncated-key test artifact; corrected in the re-verification doc.)</p>
+  </section>
+
+  <section class="card">
+    <h2>3. Android Check-In (Google)</h2>
+    <pre><code>CANARY="CoM-walkthru-$(date +%s)"
+curl -s -X POST "https://android.googleapis.com/checkin" \
+  -H "Content-Type: application/json" \
+  -d '{"checkin":{
+        "device_info":["device:taimen","manufacturer:google","model:Pixel 4 XL","sdk:29"],
+        "android_id":"'"$(printf '%016X' $RANDOM$RANDOM$RANDOM$RANDOM)"'",
+        "security_token":"'"$RANDOM$RANDOM"'",
+        "canary":"'"$CANARY"'"}}'</code></pre>
+    <p><span class="note">Observed (2026-09-05):</span> <code>HTTP 200</code> with
+    <code>{"stats_ok":true,...}</code>.</p>
+  </section>
+
+  <section class="card">
+    <h2>4. Analytics pixel family (Meta / LinkedIn / Baidu / CNZZ)</h2>
+    <pre><code>CANARY="CoM-walkthru-$(date +%s)"
+# Meta pixel — benign PageView canary
+curl -s -o /dev/null -w "meta /tr: HTTP %{http_code}\n" \
+  "https://www.facebook.com/tr?id=2383998068872723980&amp;ev=PageView&amp;dl=https://example.com&amp;cd=%7B%22canary%22%3A%22$CANARY%22%7D"
+
+# LinkedIn collect
+curl -s -o /dev/null -w "linkedin /collect: HTTP %{http_code}\n" \
+  "https://px.ads.linkedin.com/collect?url=https://example.com/$CANARY"
+
+# Baidu hm.gif
+curl -s -o /dev/null -w "baidu hm.gif: HTTP %{http_code}\n" \
+  "https://hm.baidu.com/hm.gif?si=$CANARY"
+
+# CNZZ
+curl -s -o /dev/null -w "cnzz mmstat: HTTP %{http_code}\n" \
+  "https://cnzz.mmstat.com?canary=$CANARY"</code></pre>
+    <p><span class="note">Observed (2026-09-05):</span> all returned <code>HTTP 200</code>
+    (1x1 tracking GIF bodies).</p>
+  </section>
+
+  <section class="card">
+    <h2>5. Segment write-key track (Flock Safety)</h2>
+    <pre><code>CANARY="CoM-walkthru-$(date +%s)"
+curl -s -X POST "https://api.segment.io/v1/track" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Basic $(printf '&lt;WRITE_KEY&gt;:' | base64)" \
+  -d '{"userId":"com-walkthru","event":"canary_event",
+       "properties":{"canary":"'"$CANARY"'"}}'</code></pre>
+    <p><span class="note">Observed (2026-09-05):</span> <code>HTTP 200</code> with
+    <code>{"success": true}</code>.</p>
+  </section>
+
+  <section class="card">
+    <h2>6. Datadog RUM</h2>
+    <pre><code>CANARY="CoM-walkthru-$(date +%s)"
+curl -s -X POST "https://rum.browser-intake-datadoghq.com/api/v2/rum" \
+  -H "Content-Type: application/json" \
+  -H "DD-API-KEY: &lt;CLIENT_TOKEN&gt;" \
+  -H "DD-APPLICATION-ID: &lt;APP_ID&gt;" \
+  -d '{"ddtags":"env:test",
+       "application":{"id":"&lt;APP_ID&gt;"},
+       "session":{"id":"com-walkthru"},
+       "view":{"id":"v","url":"https://example.com/'$CANARY'"},
+       "action":{"type":"custom","name":"canary","properties":{"canary":"'"$CANARY"'"}}}'</code></pre>
+    <p><span class="note">Observed (2026-09-05):</span> <code>HTTP 202</code> with
+    <code>{}</code>.</p>
+  </section>
+
+  <section class="card">
+    <h2>7. Reading the results</h2>
+    <table>
+      <thead><tr><th>Response</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>200 / 202 / 204</code></td><td>boundary accepted the synthetic event</td></tr>
+        <tr><td><code>401 / 403</code></td><td>endpoint now requires auth or rejects the source</td></tr>
+        <tr><td><code>400</code> with <code>Invalid instrumentation key</code></td><td>key rotated/revoked — partial remediation</td></tr>
+        <tr><td><code>302 / 404 / 503</code></td><td>moved, removed, or unavailable — not an acceptance signal</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Full machine-readable results (43 probes + 6-key App Insights retest)
+    are summarized in <a href="docs/reverification-2026-09-05.md">the re-verification
+    document</a>. Raw logs are not published because they contain client tokens.</p>
+  </section>
+
+</main>
+
+<footer class="site-footer"><div class="container">
+  <p>© 2026 Church of Malware · <a href="https://churchofmalware.org">churchofmalware.org</a></p>
+  <p class="note">Public-interest disclosure. No exploit code; no instructions enabling harm. TLP:CLEAR.</p>
+</div></footer>
+</body>
+</html>

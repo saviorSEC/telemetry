@@ -163,6 +163,16 @@
 <p>If the event becomes associated with personal data, regulated devices, safety systems, financial decisions, health information, children’s data, or high-risk AI workflows, additional legal and regulatory obligations may be implicated.</p>
 </blockquote>
 </main>
+<div class="notice-reverify">
+  <p><strong>Post-disclosure re-verification (2026-09-05):</strong> as of the public
+  disclosure date, most of the ingestion endpoints documented on this site still accept
+  unauthenticated telemetry injection. Several vendors stated that backend controls
+  separate or sanitize unauthenticated data, but none provided trace evidence
+  demonstrating that the submitted canaries were quarantined, discarded, or retained with
+  an immutable untrusted classification. Full results:
+  <a href="docs/reverification-2026-09-05.md">re-verification sweep (2026-09-05)</a>.</p>
+</div>
+
 <footer class="site-footer"><div class="container">
 <p>&copy; 2026 Church of Malware &middot; <a href="https://churchofmalware.org">churchofmalware.org</a> &middot; <a href="index.html">triage home</a></p>
 <p class="note">Public-interest disclosure. No exploit code; no instructions enabling harm. TLP:CLEAR.</p>

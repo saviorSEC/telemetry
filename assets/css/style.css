@@ -87,3 +87,10 @@ a:hover { text-decoration: none; }
   pre { background: #f0f2f6; }
   strong { color: #0f1622; }
 }
+
+.notice-reverify {
+  max-width: 960px; margin: 0 auto 1.25rem; padding: .9rem 1.1rem;
+  background: rgba(255, 107, 107, .06); border: 1px solid rgba(255, 107, 107, .35);
+  border-radius: 8px; font-size: .85rem; color: var(--fg);
+}
+.notice-reverify a { color: var(--accent); }

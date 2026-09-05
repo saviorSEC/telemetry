@@ -835,6 +835,16 @@ customEvents
 <strong>Contact:</strong> via CERT/CC for questions or security disclosures.</p>
 <p>This paper is intended to promote discussion about architectural security in telemetry systems. The findings described herein are based on publicly available information and independent research. Organizations are encouraged to assess their own telemetry pipelines and implement appropriate security controls.</p>
 </main>
+<div class="notice-reverify">
+  <p><strong>Post-disclosure re-verification (2026-09-05):</strong> as of the public
+  disclosure date, most of the ingestion endpoints documented on this site still accept
+  unauthenticated telemetry injection. Several vendors stated that backend controls
+  separate or sanitize unauthenticated data, but none provided trace evidence
+  demonstrating that the submitted canaries were quarantined, discarded, or retained with
+  an immutable untrusted classification. Full results:
+  <a href="docs/reverification-2026-09-05.md">re-verification sweep (2026-09-05)</a>.</p>
+</div>
+
 <footer class="site-footer"><div class="container">
 <p>&copy; 2026 Church of Malware &middot; <a href="https://churchofmalware.org">churchofmalware.org</a> &middot; <a href="index.html">triage home</a></p>
 <p class="note">Public-interest disclosure. No exploit code; no instructions enabling harm. TLP:CLEAR.</p>
